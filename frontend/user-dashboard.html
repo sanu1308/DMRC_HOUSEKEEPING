@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Dashboard - DMRC Housekeeping Management System</title>
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+  <div class="dashboard-container">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div style="padding: 0 1.5rem 1.5rem; font-weight: 700; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+        <span style="font-size: 1.4rem;">🚆</span>
+        <span>Metro Housekeeping</span>
+      </div>
+      <ul class="sidebar-menu">
+        <li><a href="#" onclick="loadSection('overview')" class="menu-link active" data-section="overview">Overview</a></li>
+        <li><a href="#" onclick="loadSection('housekeeping')" class="menu-link" data-section="housekeeping">Housekeeping</a></li>
+        <li><a href="#" onclick="loadSection('chemicals')" class="menu-link" data-section="chemicals">Chemicals</a></li>
+        <li><a href="#" onclick="loadSection('machinery')" class="menu-link" data-section="machinery">Machinery</a></li>
+        <li><a href="#" onclick="loadSection('pest-control')" class="menu-link" data-section="pest-control">Pest Control</a></li>
+        <li><a href="#" onclick="logout()" class="menu-link" style="margin-top: 2rem; background-color: #c82333;">Logout</a></li>
+      </ul>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+      <!-- TOP BAR -->
+      <div class="top-bar">
+        <div>
+          <h1>Staff Dashboard</h1>
+          <p style="margin-top: 0.3rem; color: #666; font-size: 0.95rem;">Track your daily housekeeping, chemical usage and more.</p>
+        </div>
+        <div id="userInfo"></div>
+      </div>
+
+      <!-- MESSAGE AREA -->
+      <div id="message" class="message"></div>
+
+      <!-- OVERVIEW SECTION -->
+      <div id="overviewSection" class="content-section">
+        <h2>Overview</h2>
+        <div style="margin-top: 1.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem;">
+          <div style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.04);">
+            <p style="font-size: 0.9rem; color: #666;">Total Submissions</p>
+            <h2 id="totalSubmissions" style="margin-top: 0.5rem; font-size: 1.8rem; color: #003da5;">0</h2>
+          </div>
+          <div style="background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.04);">
+            <p style="font-size: 0.9rem; color: #666;">Today's Submissions</p>
+            <h2 id="todaySubmissions" style="margin-top: 0.5rem; font-size: 1.8rem; color: #003da5;">0</h2>
+          </div>
+        </div>
+
+        <div class="table-container" style="margin-top: 2rem;">
+          <div class="table-controls">
+            <h3 style="font-size: 1rem; color: #003da5;">Recent Housekeeping Records</h3>
+            <button class="btn-add" onclick="loadHistory()" type="button">Refresh</button>
+          </div>
+          <table id="historyTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Station</th>
+                <th>Cleaning Type</th>
+                <th>Area</th>
+                <th>Remarks</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- HOUSEKEEPING SECTION -->
+      <div id="housekeepingSection" class="content-section" style="display: none;">
+        <h2>Submit Housekeeping Details</h2>
+        <div style="margin-top: 1rem; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+          <form id="housekeepingForm">
+            <div class="form-group">
+              <label for="station">Station *</label>
+              <select id="station" required></select>
+            </div>
+
+            <div class="form-group">
+              <label for="cleaningType">Cleaning Type *</label>
+              <input type="text" id="cleaningType" placeholder="e.g., Floor Cleaning, Wall Cleaning" required>
+            </div>
+
+            <div class="form-group">
+              <label for="cleaningArea">Cleaning Area *</label>
+              <input type="text" id="cleaningArea" placeholder="e.g., Platform, Stairs, Corridors" required>
+            </div>
+
+            <div class="form-group">
+              <label for="date">Date *</label>
+              <input type="date" id="date" required>
+            </div>
+
+            <div class="form-group">
+              <label for="time">Time *</label>
+              <input type="time" id="time" required>
+            </div>
+
+            <div class="form-group">
+              <label for="chemicalUsed">Chemical Used</label>
+              <select id="chemicalUsed">
+                <option value="">Select a chemical (optional)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="remarks">Remarks</label>
+              <textarea id="remarks" placeholder="Add any additional notes or observations" rows="3" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; resize: vertical;"></textarea>
+            </div>
+
+            <button type="submit" class="form-submit">Submit Record</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- CHEMICALS SECTION -->
+      <div id="chemicalsSection" class="content-section" style="display: none;">
+        <h2>Chemical Usage</h2>
+        <div class="table-container">
+          <div class="table-controls">
+            <div class="table-search">
+              <input type="date" id="chemicalsFromDate" placeholder="From date">
+            </div>
+            <div class="table-search">
+              <input type="date" id="chemicalsToDate" placeholder="To date">
+            </div>
+            <button class="btn-add" type="button" onclick="loadChemicalUsage()">Apply</button>
+            <button class="btn-add" type="button" onclick="openModal('chemicalUsageModal')">Add Record</button>
+          </div>
+          <table id="chemicalsTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Chemical</th>
+                <th>Quantity</th>
+                <th>Unit</th>
+                <th>Shift</th>
+                <th>Area / Category</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- MACHINERY SECTION -->
+      <div id="machinerySection" class="content-section" style="display: none;">
+        <h2>Machinery Overview</h2>
+        <p style="margin-top: 0.5rem; color: #666; font-size: 0.95rem;">View machinery configured by your admin.</p>
+        <div class="table-container">
+          <div class="table-controls">
+            <h3 style="font-size: 1rem; color: #003da5;">Machinery List</h3>
+            <button class="btn-add" type="button" onclick="openModal('machineryUsageModal')">Add Record</button>
+          </div>
+          <table id="machineryTable">
+            <thead>
+              <tr>
+                <th>Machinery</th>
+                <th>Days in Use</th>
+                <th>Station</th>
+                <th>Created Date</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- PEST CONTROL SECTION -->
+      <div id="pest-controlSection" class="content-section" style="display: none;">
+        <h2>Pest Control Overview</h2>
+        <p style="margin-top: 0.5rem; color: #666; font-size: 0.95rem;">View pest control activities configured by your admin.</p>
+        <div class="table-container">
+          <div class="table-controls">
+            <h3 style="font-size: 1rem; color: #003da5;">Pest Control Records</h3>
+            <button class="btn-add" type="button" onclick="openModal('userPestControlModal')">Add Record</button>
+          </div>
+          <table id="pestControlTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Chemical Used</th>
+                <th>Quantity</th>
+                <th>Station</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- User Chemical Usage Modal -->
+  <div id="chemicalUsageModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Add Chemical Usage Record</h2>
+        <button class="modal-close" onclick="closeModal('chemicalUsageModal')">✕</button>
+      </div>
+      <form id="chemicalUsageForm">
+        <p style="margin-bottom: 1rem; color: #666;">Record chemical usage for your station.</p>
+        <div class="form-group">
+          <label>Category</label>
+          <select id="chemicalUsageCategory" required>
+            <option value="">Select category</option>
+            <option value="Cleaning">Cleaning</option>
+            <option value="Sanitization">Sanitization</option>
+            <option value="Disinfection">Disinfection</option>
+            <option value="Deodorizing">Deodorizing</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Chemical Name</label>
+          <select id="chemicalUsageChemical" required>
+            <option value="">Select chemical</option>
+            <option value="Soaps">Soaps</option>
+            <option value="Mop">Mop</option>
+            <option value="Floor Cleaner">Floor Cleaner</option>
+            <option value="Glass Cleaner">Glass Cleaner</option>
+            <option value="Disinfectants">Disinfectants</option>
+            <option value="Sanitizer">Sanitizer</option>
+            <option value="Bleach">Bleach</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Quantity</label>
+          <input type="number" id="chemicalUsageQuantity" step="0.01" min="0" required>
+        </div>
+        <div class="form-group">
+          <label>Unit</label>
+          <select id="chemicalUsageUnit" required>
+            <option value="">Select unit</option>
+            <option value="kg">Kg</option>
+            <option value="litre">Litre</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Usage Date</label>
+          <input type="date" id="chemicalUsageDate" required>
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea id="chemicalUsageNotes" rows="3" placeholder="Optional remarks"></textarea>
+        </div>
+        <button type="submit" class="form-submit">Add record</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- User Pest Control Modal -->
+  <div id="userPestControlModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Add Pest Control Record</h2>
+        <button class="modal-close" onclick="closeModal('userPestControlModal')">✕</button>
+      </div>
+      <form id="userPestControlForm">
+        <p style="margin-bottom: 1rem; color: #666;">Log a pest control activity for your station.</p>
+        <div class="form-group">
+          <label>Shift</label>
+          <select id="userPestShift" required>
+            <option value="">Select shift</option>
+            <option value="Day">Day</option>
+            <option value="Evening">Evening</option>
+            <option value="Night">Night</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Pest Type</label>
+          <select id="userPestType" required>
+            <option value="">Select pest type</option>
+            <option value="Rodent">Rodent</option>
+            <option value="Insect">Insect</option>
+            <option value="Termite">Termite</option>
+            <option value="Cockroach">Cockroach</option>
+            <option value="Mosquito">Mosquito</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Treatment Method</label>
+          <select id="userPestMethod" required>
+            <option value="">Select method</option>
+            <option value="Spray">Spray</option>
+            <option value="Bait">Bait</option>
+            <option value="Trap">Trap</option>
+            <option value="Gel">Gel</option>
+            <option value="Fumigation">Fumigation</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Chemical Used</label>
+          <select id="userPestChemical" required>
+            <option value="">Select chemical</option>
+            <option value="Boric Acid">Boric Acid</option>
+            <option value="Pyrethrin">Pyrethrin</option>
+            <option value="Fipronil">Fipronil</option>
+            <option value="Gel Bait">Gel Bait</option>
+            <option value="Spray">Spray</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Quantity</label>
+          <input type="number" id="userPestQuantity" step="0.01" min="0" required>
+        </div>
+        <div class="form-group">
+          <label>Unit</label>
+          <select id="userPestUnit" required>
+            <option value="">Select unit</option>
+            <option value="kg">Kg</option>
+            <option value="litre">Litre</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Station</label>
+          <select id="userPestStation" required></select>
+        </div>
+        <div class="form-group">
+          <label>Area Treated</label>
+          <select id="userPestArea" required>
+            <option value="">Select area</option>
+            <option value="Platform">Platform</option>
+            <option value="Waiting Hall">Waiting Hall</option>
+            <option value="Restroom">Restroom</option>
+            <option value="Office">Office</option>
+            <option value="Tracks">Tracks</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Treatment Date</label>
+          <input type="date" id="userPestDate" required>
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea id="userPestNotes" rows="3" placeholder="Optional remarks"></textarea>
+        </div>
+        <button type="submit" class="form-submit">Add Record</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- User Machinery Usage Modal -->
+  <div id="machineryUsageModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Add Machinery Usage Record</h2>
+        <button class="modal-close" onclick="closeModal('machineryUsageModal')">✕</button>
+      </div>
+      <form id="machineryUsageForm">
+        <p style="margin-bottom: 1rem; color: #666;">Record machinery usage for your station.</p>
+        <div class="form-group">
+          <label>Machine Type</label>
+          <select id="machineryUsageType" required>
+            <option value="">Select machine type</option>
+            <option value="Scrubber">Scrubber</option>
+            <option value="Vacuum">Vacuum</option>
+            <option value="Polisher">Polisher</option>
+            <option value="Washer">Washer</option>
+            <option value="Dryer">Dryer</option>
+            <option value="Blower">Blower</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Machine Name</label>
+          <select id="machineryUsageName" required>
+            <option value="">Select machine name</option>
+            <option value="Floor Scrubber">Floor Scrubber</option>
+            <option value="Auto Scrubber">Auto Scrubber</option>
+            <option value="Wet Vacuum">Wet Vacuum</option>
+            <option value="Dry Vacuum">Dry Vacuum</option>
+            <option value="Polishing Machine">Polishing Machine</option>
+            <option value="Pressure Washer">Pressure Washer</option>
+            <option value="Floor Dryer">Floor Dryer</option>
+            <option value="Air Blower">Air Blower</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Usage Hours</label>
+          <input type="number" id="machineryUsageHours" step="0.1" min="0" required>
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select id="machineryUsageStatus" required>
+            <option value="">Select status</option>
+            <option value="Operational">Operational</option>
+            <option value="Maintenance">Maintenance</option>
+            <option value="Breakdown">Broken</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Usage Date</label>
+          <input type="date" id="machineryUsageDate" required>
+        </div>
+        <div class="form-group">
+          <label>Shift</label>
+          <select id="machineryUsageShift" required>
+            <option value="">Select shift</option>
+            <option value="Day">Day</option>
+            <option value="Evening">Evening</option>
+            <option value="Night">Night</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea id="machineryUsageNotes" rows="3" placeholder="Optional remarks"></textarea>
+        </div>
+        <button type="submit" class="form-submit">Add Record</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="assets/js/auth.js"></script>
+  <script src="assets/js/user-dashboard.js"></script>
+</body>
+</html>

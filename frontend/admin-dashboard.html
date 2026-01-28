@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - DMRC Housekeeping Management System</title>
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+  <div class="dashboard-container">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <ul class="sidebar-menu">
+        <li><a href="#" onclick="loadSection('dashboard')" class="menu-link active" data-section="dashboard">Dashboard</a></li>
+        <li><a href="#" onclick="loadSection('stations')" class="menu-link" data-section="stations">Stations</a></li>
+        <li><a href="#" onclick="loadSection('chemicals')" class="menu-link" data-section="chemicals">Chemicals</a></li>
+        <li><a href="#" onclick="loadSection('machinery')" class="menu-link" data-section="machinery">Machinery</a></li>
+        <li><a href="#" onclick="loadSection('staff')" class="menu-link" data-section="staff">Staff</a></li>
+        <li><a href="#" onclick="loadSection('pest-control')" class="menu-link" data-section="pest-control">Pest Control</a></li>
+        <li><a href="#" onclick="loadSection('logs')" class="menu-link" data-section="logs">Housekeeping Logs</a></li>
+        <li><a href="#" onclick="logout()" class="menu-link" style="margin-top: 2rem; background-color: #c82333;">Logout</a></li>
+      </ul>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+      <!-- TOP BAR -->
+      <div class="top-bar">
+        <h1>Admin Dashboard</h1>
+        <div id="userInfo"></div>
+      </div>
+
+      <!-- MESSAGE AREA -->
+      <div id="message" class="message"></div>
+
+      <!-- CONTENT SECTIONS -->
+      <div id="dashboardSection" class="content-section">
+        <h2>Dashboard Overview</h2>
+        <p>Welcome to the DMRC Housekeeping Management System. Select a section from the sidebar to manage system data.</p>
+        <div style="margin-top: 2rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+          <div style="background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center;">
+            <h3 id="stationCount">0</h3>
+            <p>Total Stations</p>
+          </div>
+          <div style="background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center;">
+            <h3 id="chemicalCount">0</h3>
+            <p>Chemical Products</p>
+          </div>
+          <div style="background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center;">
+            <h3 id="machineryCount">0</h3>
+            <p>Machinery Items</p>
+          </div>
+          <div style="background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center;">
+            <h3 id="logCount">0</h3>
+            <p>Total Logs</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- STATIONS SECTION -->
+      <div id="stationsSection" class="content-section" style="display: none;">
+        <div class="table-container">
+          <div class="table-controls">
+            <div class="table-search">
+              <input type="text" placeholder="Search stations...">
+            </div>
+            <button class="btn-add" onclick="openModal('stationModal')">Add Station</button>
+          </div>
+          <table id="stationsTable">
+            <thead>
+              <tr>
+                <th>Station Name</th>
+                <th>Station Code</th>
+                <th>Created Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- CHEMICALS SECTION -->
+      <div id="chemicalsSection" class="content-section" style="display: none;">
+        <div class="table-container">
+          <div class="table-controls">
+            <div class="table-search">
+              <input type="text" placeholder="Search chemicals...">
+            </div>
+            <button class="btn-add" onclick="openModal('chemicalModal')">Add Chemical</button>
+          </div>
+          <table id="chemicalsTable">
+            <thead>
+              <tr>
+                <th>Chemical Name</th>
+                <th>Unit</th>
+                <th>Quantity</th>
+                <th>Monthly Qty</th>
+                <th>Daily Used</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- MACHINERY SECTION -->
+      <div id="machinerySection" class="content-section" style="display: none;">
+        <div class="table-container">
+          <div class="table-controls">
+            <div class="table-search">
+              <input type="text" placeholder="Search machinery...">
+            </div>
+            <button class="btn-add" onclick="openModal('machineryModal')">Add Machinery</button>
+          </div>
+          <table id="machineryTable">
+            <thead>
+              <tr>
+                <th>Machinery Name</th>
+                <th>Days in Use</th>
+                <th>Station</th>
+                <th>Created Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- STAFF SECTION -->
+      <div id="staffSection" class="content-section" style="display: none;">
+        <div class="table-container">
+          <div class="table-controls">
+            <div class="table-search">
+              <input type="text" placeholder="Search staff...">
+            </div>
+            <button class="btn-add" onclick="openModal('staffModal')">Add Staff Record</button>
+          </div>
+          <table id="staffTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Station</th>
+                <th>Shift</th>
+                <th>Manpower</th>
+                <th>Number of Persons</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- PEST CONTROL SECTION -->
+      <div id="pestControlSection" class="content-section" style="display: none;">
+        <div class="table-container">
+          <div class="table-controls">
+            <div class="table-search">
+              <input type="text" placeholder="Search pest control...">
+            </div>
+            <button class="btn-add" onclick="openModal('pestControlModal')">Add Pest Control Record</button>
+          </div>
+          <table id="pestControlTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Chemical Used</th>
+                <th>Quantity</th>
+                <th>Station</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- LOGS SECTION -->
+      <div id="logsSection" class="content-section" style="display: none;">
+        <div class="table-container">
+          <div class="table-controls">
+            <div class="table-search">
+              <input type="text" placeholder="Search logs...">
+            </div>
+          </div>
+          <table id="logsTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Time</th>
+                <th>User</th>
+                <th>Station</th>
+                <th>Cleaning Type</th>
+                <th>Area</th>
+                <th>Remarks</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- MODALS -->
+  <!-- Station Modal -->
+  <div id="stationModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Add Station</h2>
+        <button class="modal-close" onclick="closeModal('stationModal')">✕</button>
+      </div>
+      <form id="stationForm">
+        <div class="form-group">
+          <label>Station Name</label>
+          <input type="text" id="stationName" required>
+        </div>
+        <div class="form-group">
+          <label>Station Code</label>
+          <input type="text" id="stationCode" required>
+        </div>
+        <button type="submit" class="form-submit">Add Station</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Chemical Modal -->
+  <div id="chemicalModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Add Chemical</h2>
+        <button class="modal-close" onclick="closeModal('chemicalModal')">✕</button>
+      </div>
+      <form id="chemicalForm">
+        <div class="form-group">
+          <label>Chemical Name</label>
+          <input type="text" id="chemicalName" required>
+        </div>
+        <div class="form-group">
+          <label>Measuring Unit</label>
+          <input type="text" id="chemicalUnit" placeholder="Liters, Kg, etc." required>
+        </div>
+        <div class="form-group">
+          <label>Quantity</label>
+          <input type="number" id="chemicalQuantity" required>
+        </div>
+        <div class="form-group">
+          <label>Monthly Quantity</label>
+          <input type="number" id="chemicalMonthlyQuantity" required>
+        </div>
+        <button type="submit" class="form-submit">Add Chemical</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Machinery Modal -->
+  <div id="machineryModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Add Machinery</h2>
+        <button class="modal-close" onclick="closeModal('machineryModal')">✕</button>
+      </div>
+      <form id="machineryForm">
+        <div class="form-group">
+          <label>Machinery Name</label>
+          <input type="text" id="machineryName" required>
+        </div>
+        <div class="form-group">
+          <label>Number of Days</label>
+          <input type="number" id="machineryDays" required>
+        </div>
+        <div class="form-group">
+          <label>Station</label>
+          <select id="machineryStation" required></select>
+        </div>
+        <button type="submit" class="form-submit">Add Machinery</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Staff Modal -->
+  <div id="staffModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Add Staff Record</h2>
+        <button class="modal-close" onclick="closeModal('staffModal')">✕</button>
+      </div>
+      <form id="staffForm">
+        <div class="form-group">
+          <label>Date</label>
+          <input type="date" id="staffDate" required>
+        </div>
+        <div class="form-group">
+          <label>Station Name</label>
+          <input type="text" id="staffStation" required>
+        </div>
+        <div class="form-group">
+          <label>Shift</label>
+          <select id="staffShift" required>
+            <option value="Morning">Morning</option>
+            <option value="Afternoon">Afternoon</option>
+            <option value="Night">Night</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Manpower</label>
+          <input type="text" id="staffManpower" required>
+        </div>
+        <div class="form-group">
+          <label>Number of Persons</label>
+          <input type="number" id="staffPersons" required>
+        </div>
+        <button type="submit" class="form-submit">Add Staff</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Pest Control Modal -->
+  <div id="pestControlModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Add Pest Control Record</h2>
+        <button class="modal-close" onclick="closeModal('pestControlModal')">✕</button>
+      </div>
+      <form id="pestControlForm">
+        <div class="form-group">
+          <label>Type</label>
+          <input type="text" id="pestType" required>
+        </div>
+        <div class="form-group">
+          <label>Chemical Used</label>
+          <input type="text" id="pestChemical" required>
+        </div>
+        <div class="form-group">
+          <label>Measuring Unit</label>
+          <input type="text" id="pestUnit" required>
+        </div>
+        <div class="form-group">
+          <label>Quantity Used</label>
+          <input type="number" id="pestQuantity" step="0.01" required>
+        </div>
+        <div class="form-group">
+          <label>Station</label>
+          <select id="pestStation" required></select>
+        </div>
+        <div class="form-group">
+          <label>Date</label>
+          <input type="date" id="pestDate" required>
+        </div>
+        <button type="submit" class="form-submit">Add Record</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="assets/js/auth.js"></script>
+  <script src="assets/js/admin-dashboard.js"></script>
+</body>
+</html>
