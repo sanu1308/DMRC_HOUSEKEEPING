@@ -217,6 +217,42 @@ export default function AdminPestControlClient() {
     setSelectedStation('');
   }
 
+  function renderRecordRows() {
+    if (loading) {
+      return (
+        <TableRow>
+          <TableCell colSpan={7} className="text-center text-sm">
+            Loading...
+          </TableCell>
+        </TableRow>
+      );
+    }
+
+    if (records.length === 0) {
+      return (
+        <TableRow>
+          <TableCell colSpan={7} className="text-center text-sm">
+            No records found.
+          </TableCell>
+        </TableRow>
+      );
+    }
+
+    return records.map((r) => (
+      <TableRow key={r.id}>
+        <TableCell>{r.service_date || r.date}</TableCell>
+        <TableCell>{r.station_name}</TableCell>
+        <TableCell>{r.pest_type || r.pest_control_type}</TableCell>
+        <TableCell>{r.control_method || '—'}</TableCell>
+        <TableCell>{r.chemical_used}</TableCell>
+        <TableCell>
+          {r.quantity_used} {r.measuring_unit}
+        </TableCell>
+        <TableCell>{r.area_covered || '—'}</TableCell>
+      </TableRow>
+    ));
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-fuchsia-50 via-rose-50 to-amber-50 px-4 py-6 md:px-8 md:py-10">
       <div className="mx-auto max-w-6xl space-y-6 rounded-4xl bg-white/80 p-4 shadow-2xl ring-1 ring-rose-100 backdrop-blur md:p-8">
@@ -492,34 +528,7 @@ export default function AdminPestControlClient() {
                 <TableHead>Area</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-sm">
-                    Loading...
-                  </TableCell>
-                </TableRow>
-              ) : records.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-sm">
-                    No records found.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                records.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell>{r.service_date || r.date}</TableCell>
-                    <TableCell>{r.station_name}</TableCell>
-                    <TableCell>{r.pest_type || r.pest_control_type}</TableCell>
-                    <TableCell>{r.control_method || '—'}</TableCell>
-                    <TableCell>{r.chemical_used}</TableCell>
-                    <TableCell>
-                      {r.quantity_used} {r.measuring_unit}
-                    </TableCell>
-                    <TableCell>{r.area_covered || '—'}</TableCell>
-                  </TableRow>
-                ))}
-            </TableBody>
+            <TableBody>{renderRecordRows()}</TableBody>
           </Table>
         </CardContent>
       </Card>

@@ -9,4 +9,3 @@ export default function AdminPestControlPage() {
     </Suspense>
   );
 }
-}

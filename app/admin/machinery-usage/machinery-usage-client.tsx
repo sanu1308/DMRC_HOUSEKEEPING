@@ -298,6 +298,103 @@ export default function AdminMachineryUsageClient() {
     setSelectedStation('');
   }
 
+  function renderInventorySummarySection() {
+    if (!inventorySummary) {
+      return (
+        <p className="text-sm text-slate-500">
+          {inventoryLoading ? 'Loading inventory summary...' : 'No machinery inventory has been recorded yet.'}
+        </p>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        <div className="mt-6 grid gap-4 lg:grid-cols-3">
+          <div className="rounded-2xl border border-white/60 bg-white/90 p-5 shadow">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Availability</p>
+            <div className="mt-4 space-y-3 text-slate-900">
+              <div>
+                <p className="text-sm text-slate-500">Total Machines</p>
+                <p className="text-2xl font-semibold">
+                  {inventorySummary.quantity_total.toLocaleString()}
+                </p>
+              </div>
+              <div className="flex items-center justify-between border-t border-slate-200/70 pt-3 text-sm">
+                <span className="text-slate-600">Available / Working</span>
+                <span className="font-semibold">
+                  {inventorySummary.quantity_working.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-600">In Use</span>
+                <span className="font-semibold">
+                  {inventorySummary.quantity_in_use.toLocaleString()}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-rose-100 bg-rose-50 p-5 shadow">
+            <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">Risk</p>
+            <div className="mt-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-rose-600">Faulty</p>
+                  <p className="text-lg font-semibold text-rose-900">
+                    {inventorySummary.quantity_faulty.toLocaleString()}
+                  </p>
+                </div>
+                <AlertTriangle className="h-5 w-5 text-rose-500" />
+              </div>
+              <div className="flex items-center justify-between border-t border-amber-200/80 pt-4">
+                <div>
+                  <p className="text-sm text-amber-600">Under Maintenance</p>
+                  <p className="text-lg font-semibold text-amber-900">
+                    {inventorySummary.quantity_maintenance.toLocaleString()}
+                  </p>
+                </div>
+                <Wrench className="h-5 w-5 text-amber-500" />
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-sky-100 bg-sky-50 p-5 shadow">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Performance</p>
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-slate-500">Runtime Utilization</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-3xl font-bold text-slate-900">
+                    {utilizationPercent.toFixed(1)}%
+                  </span>
+                  {isLowUtilization ? (
+                    <AlertTriangle
+                      className="h-5 w-5 text-amber-500"
+                      aria-label="Low utilization warning"
+                    />
+                  ) : (
+                    <Gauge className="h-5 w-5 text-slate-500" />
+                  )}
+                </div>
+              </div>
+              <p className="text-sm text-slate-600">
+                Utilization across {inventorySummary.stations_with_inventory} stations
+              </p>
+              <p className="text-xs text-slate-500">
+                {isLowUtilization
+                  ? 'Low runtime detected - redistribute workloads to avoid idle fleets.'
+                  : 'Healthy runtime - maintain rotation schedule.'}
+              </p>
+            </div>
+          </div>
+        </div>
+        <p className="mt-4 text-xs text-slate-500">
+          Tracking {inventorySummary.stations_with_inventory} stations with recorded machinery inventory.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-amber-50 to-white px-4 py-6 md:px-8 md:py-10">
       <div className="mx-auto max-w-6xl space-y-6 rounded-4xl bg-white/85 p-4 shadow-2xl ring-1 ring-amber-100 backdrop-blur md:p-8">
@@ -342,97 +439,7 @@ export default function AdminMachineryUsageClient() {
             {inventoryLoading ? 'Refreshing...' : 'Refresh counts'}
           </Button>
         </CardHeader>
-        <CardContent>
-          {inventorySummary ? (
-            <>
-              <div className="mt-6 grid gap-4 lg:grid-cols-3">
-                <div className="rounded-2xl border border-white/60 bg-white/90 p-5 shadow">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Availability</p>
-                  <div className="mt-4 space-y-3 text-slate-900">
-                    <div>
-                      <p className="text-sm text-slate-500">Total Machines</p>
-                      <p className="text-2xl font-semibold">
-                        {inventorySummary.quantity_total.toLocaleString()}
-                      </p>
-                    </div>
-                    <div className="flex items-center justify-between border-t border-slate-200/70 pt-3 text-sm">
-                      <span className="text-slate-600">Available / Working</span>
-                      <span className="font-semibold">
-                        {inventorySummary.quantity_working.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-600">In Use</span>
-                      <span className="font-semibold">
-                        {inventorySummary.quantity_in_use.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-rose-100 bg-rose-50 p-5 shadow">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">Risk</p>
-                  <div className="mt-4 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-rose-600">Faulty</p>
-                        <p className="text-lg font-semibold text-rose-900">
-                          {inventorySummary.quantity_faulty.toLocaleString()}
-                        </p>
-                      </div>
-                      <AlertTriangle className="h-5 w-5 text-rose-500" />
-                    </div>
-                    <div className="flex items-center justify-between border-t border-amber-200/80 pt-4">
-                      <div>
-                        <p className="text-sm text-amber-600">Under Maintenance</p>
-                        <p className="text-lg font-semibold text-amber-900">
-                          {inventorySummary.quantity_maintenance.toLocaleString()}
-                        </p>
-                      </div>
-                      <Wrench className="h-5 w-5 text-amber-500" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-sky-100 bg-sky-50 p-5 shadow">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Performance</p>
-                  <div className="mt-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-slate-500">Runtime Utilization</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-3xl font-bold text-slate-900">
-                        {utilizationPercent.toFixed(1)}%
-                      </span>
-                      {isLowUtilization ? (
-                        <AlertTriangle
-                          className="h-5 w-5 text-amber-500"
-                          aria-label="Low utilization warning"
-                        />
-                      ) : (
-                        <Gauge className="h-5 w-5 text-slate-500" />
-                      )}
-                    </div>
-                    <p className="text-sm text-slate-600">
-                      Utilization across {inventorySummary.stations_with_inventory} stations
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      {isLowUtilization
-                        ? 'Low runtime detected — redistribute workloads to avoid idle fleets.'
-                        : 'Healthy runtime — maintain rotation schedule.'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <p className="mt-4 text-xs text-slate-500">
-                Tracking {inventorySummary.stations_with_inventory} stations with recorded machinery inventory.
-              </p>
-            </>
-          ) : (
-            <p className="text-sm text-slate-500">
-              {inventoryLoading ? 'Loading inventory summary...' : 'No machinery inventory has been recorded yet.'}
-            </p>
-          )}
-        </CardContent>
+        <CardContent>{renderInventorySummarySection()}</CardContent>
       </Card>
 
       {/* Filters */}
