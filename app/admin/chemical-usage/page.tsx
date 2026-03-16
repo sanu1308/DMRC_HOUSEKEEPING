@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import { Download, Filter, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Download, Filter, TrendingUp } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -219,25 +220,33 @@ export default function AdminChemicalUsagePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-6 md:px-8 md:py-10">
-      <div className="mx-auto max-w-6xl space-y-6 rounded-3xl bg-white/95 p-4 shadow-lg ring-1 ring-black/5 md:p-8">
-        <div className="flex items-center justify-between">
-          <div>
+    <div className="min-h-screen bg-gradient-to-br from-sky-50 via-cyan-50 to-emerald-50 px-4 py-6 md:px-8 md:py-10">
+      <div className="mx-auto max-w-6xl space-y-6 rounded-4xl bg-white/80 p-4 shadow-2xl ring-1 ring-sky-100 backdrop-blur md:p-8">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-gradient-to-r from-sky-100 via-white to-emerald-100 px-5 py-4">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Analytics</p>
             <h2 className="text-3xl font-bold tracking-tight text-slate-900">
-              Chemical Usage Analytics
+              Chemical Usage Insights
             </h2>
-            <p className="text-sm text-slate-500 mt-1">
-              Monitor chemical consumption and identify over-usage patterns
+            <p className="text-sm text-slate-600">
+              Monitor chemical consumption and spot anomalies faster
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={handleExportCsv}>
-            <Download className="mr-2 h-4 w-4" />
-            Export CSV
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild variant="ghost" className="rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-100">
+              <Link href="/admin" className="inline-flex items-center gap-2">
+                <ArrowLeft className="h-4 w-4" /> Back to Dashboard
+              </Link>
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExportCsv} className="rounded-full border-sky-200 text-sky-700 hover:bg-sky-50">
+              <Download className="mr-2 h-4 w-4" />
+              Export CSV
+            </Button>
+          </div>
         </div>
 
       {/* Filters */}
-      <Card>
+      <Card className="border-0 bg-gradient-to-br from-white via-sky-50 to-emerald-50 shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Filter className="h-5 w-5" />
@@ -321,10 +330,10 @@ export default function AdminChemicalUsagePage() {
             </div>
           </div>
           <div className="flex gap-2 mt-4">
-            <Button onClick={loadData} size="sm">
+            <Button onClick={loadData} size="sm" className="rounded-full bg-sky-600 text-white hover:bg-sky-500">
               Apply Filters
             </Button>
-            <Button onClick={clearFilters} variant="outline" size="sm">
+            <Button onClick={clearFilters} variant="outline" size="sm" className="rounded-full border-slate-200 text-slate-600 hover:bg-white">
               Clear
             </Button>
           </div>
@@ -333,7 +342,7 @@ export default function AdminChemicalUsagePage() {
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2">
-        <Card>
+        <Card className="border-0 bg-white/90 shadow-xl">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-blue-600" />
@@ -346,7 +355,7 @@ export default function AdminChemicalUsagePage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-0 bg-white/90 shadow-xl">
           <CardHeader>
             <CardTitle>Top Chemicals by Usage</CardTitle>
           </CardHeader>
@@ -374,7 +383,7 @@ export default function AdminChemicalUsagePage() {
       </div>
 
       {/* Usage by Chemical Table */}
-      <Card>
+      <Card className="border-0 bg-white/90 shadow-xl">
         <CardHeader>
           <CardTitle>Usage by Chemical</CardTitle>
           <CardDescription>
@@ -415,7 +424,7 @@ export default function AdminChemicalUsagePage() {
       </Card>
 
       {/* Detailed Records */}
-      <Card>
+      <Card className="border-0 bg-white/90 shadow-xl">
         <CardHeader>
           <CardTitle>Detailed Usage Records</CardTitle>
           <CardDescription>

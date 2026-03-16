@@ -64,6 +64,40 @@ type FieldErrors = Partial<
   >
 >;
 
+const shiftBadgeStyles: Record<string, string> = {
+  Day: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  Night: 'bg-indigo-50 text-indigo-700 border border-indigo-200',
+};
+
+const areaPillPalette = [
+  'bg-sky-50 text-sky-700 border border-sky-100',
+  'bg-rose-50 text-rose-700 border border-rose-100',
+  'bg-amber-50 text-amber-800 border border-amber-100',
+  'bg-lime-50 text-lime-700 border border-lime-100',
+];
+
+const rowTintByShift: Record<string, string> = {
+  Day: 'bg-gradient-to-r from-emerald-50/70 via-white to-white',
+  Night: 'bg-gradient-to-r from-indigo-50/70 via-white to-white',
+};
+
+const getAreaBadgeClass = (area: string | null | undefined) => {
+  if (!area) {
+    return 'bg-slate-100 text-slate-600 border border-slate-200';
+  }
+  const safeArea = area.trim();
+  const paletteIndex = Math.abs(safeArea.length + safeArea.charCodeAt(0)) % areaPillPalette.length;
+  return areaPillPalette[paletteIndex];
+};
+
+const formatUsageDate = (value: string) => {
+  try {
+    return format(new Date(value), 'dd MMM yyyy');
+  } catch (error) {
+    return value;
+  }
+};
+
 function decodeToken(token: string | null): DecodedUser {
   if (!token) {
     return { role: null, stationId: null };
@@ -704,51 +738,102 @@ export default function ChemicalUsagePage() {
         </div>
       </div>
 
-      <div className="rounded-md border bg-white">
+      <div className="overflow-hidden rounded-3xl border border-slate-100 bg-gradient-to-br from-white via-white to-slate-50 shadow-xl">
+        <div className="border-b border-slate-100 bg-gradient-to-r from-slate-900 to-slate-800 px-6 py-4 text-white">
+          <p className="text-lg font-semibold">Usage Records</p>
+          <p className="text-sm text-white/70">Recent submissions across all shifts</p>
+        </div>
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Station</TableHead>
-              <TableHead>Chemical Name</TableHead>
-              <TableHead>Quantity</TableHead>
-              <TableHead>Unit</TableHead>
-              <TableHead>Area</TableHead>
-              <TableHead>Shift</TableHead>
-              <TableHead>Manpower</TableHead>
-              <TableHead>Usage Date</TableHead>
-              <TableHead className="w-16 text-right">Actions</TableHead>
+            <TableRow className="bg-[#1FA6C8] text-xs uppercase tracking-wide text-white">
+              <TableHead className="font-semibold text-white">Station</TableHead>
+              <TableHead className="font-semibold text-white">Chemical</TableHead>
+              <TableHead className="font-semibold text-white">Quantity</TableHead>
+              <TableHead className="font-semibold text-white">Unit</TableHead>
+              <TableHead className="font-semibold text-white">Area</TableHead>
+              <TableHead className="font-semibold text-white">Shift</TableHead>
+              <TableHead className="font-semibold text-white">Manpower</TableHead>
+              <TableHead className="font-semibold text-white">Usage Date</TableHead>
+              <TableHead className="w-20 text-right font-semibold text-white">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center text-sm">
+                <TableCell colSpan={9} className="bg-slate-50/60 py-6 text-center text-sm text-slate-500">
                   Loading...
                 </TableCell>
               </TableRow>
             ) : records.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center text-sm">
+                <TableCell colSpan={9} className="bg-slate-50/60 py-6 text-center text-sm text-slate-500">
                   No records found.
                 </TableCell>
               </TableRow>
             ) : (
               records.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell>{r.station_name || '—'}</TableCell>
-                  <TableCell>{r.chemical_name}</TableCell>
-                  <TableCell>{r.quantity}</TableCell>
-                  <TableCell>{r.unit}</TableCell>
-                  <TableCell>{r.area}</TableCell>
-                  <TableCell>{r.shift}</TableCell>
-                  <TableCell>{r.manpower_used ?? '—'}</TableCell>
-                  <TableCell>{r.usage_date}</TableCell>
+                <TableRow
+                  key={r.id}
+                  className={cn(
+                    'border-b border-white/60 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg',
+                    rowTintByShift[r.shift] ?? 'bg-white',
+                  )}
+                >
+                  <TableCell className="font-semibold text-slate-900">
+                    <div className="flex flex-col">
+                      <span>{r.station_name || '—'}</span>
+                      <span className="text-xs font-medium text-slate-500">#{r.id}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <p className="font-medium text-slate-900">{r.chemical_name}</p>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-lg font-semibold text-slate-900">{r.quantity}</span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="rounded-full bg-slate-900/5 px-2 py-0.5 text-xs font-semibold uppercase text-slate-700">
+                      {r.unit}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={cn(
+                        'inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold',
+                        getAreaBadgeClass(r.area),
+                      )}
+                    >
+                      {r.area}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={cn(
+                        'inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold',
+                        shiftBadgeStyles[r.shift] || 'bg-slate-100 text-slate-600 border border-slate-200',
+                      )}
+                    >
+                      {r.shift}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center rounded-xl bg-slate-900/5 px-3 py-1 text-sm font-semibold text-slate-900">
+                      {r.manpower_used ?? '—'}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold text-slate-900">{formatUsageDate(r.usage_date)}</span>
+                      <span className="text-xs text-slate-500">Logged entry</span>
+                    </div>
+                  </TableCell>
                   <TableCell className="text-right">
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-8 w-8 text-red-500"
+                      className="h-8 w-8 rounded-full bg-white/70 text-red-500 shadow-sm ring-1 ring-red-100 hover:bg-red-50"
                       onClick={() => handleDelete(r.id)}
+                      aria-label="Delete record"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

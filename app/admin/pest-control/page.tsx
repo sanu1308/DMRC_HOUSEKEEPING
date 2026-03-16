@@ -1,8 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import { AlertTriangle, Bug, Download, Filter } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Bug, Download, Filter } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
@@ -217,25 +218,42 @@ export default function AdminPestControlPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-6 md:px-8 md:py-10">
-      <div className="mx-auto max-w-6xl space-y-6 rounded-3xl bg-white/95 p-4 shadow-lg ring-1 ring-black/5 md:p-8">
-        <div className="flex items-center justify-between">
-          <div>
+    <div className="min-h-screen bg-gradient-to-br from-fuchsia-50 via-rose-50 to-amber-50 px-4 py-6 md:px-8 md:py-10">
+      <div className="mx-auto max-w-6xl space-y-6 rounded-4xl bg-white/80 p-4 shadow-2xl ring-1 ring-rose-100 backdrop-blur md:p-8">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-gradient-to-r from-rose-100 via-white to-amber-100 px-5 py-4">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">Response Tracker</p>
             <h2 className="text-3xl font-bold tracking-tight text-slate-900">
               Pest Control Analytics
             </h2>
-            <p className="text-sm text-slate-500 mt-1">
-              Monitor pest control activities and detect recurring issues
+            <p className="text-sm text-slate-600">
+              Monitor pest incidents, methods, and hotspots across the network
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={handleExportCsv}>
-            <Download className="mr-2 h-4 w-4" />
-            Export CSV
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              asChild
+              variant="ghost"
+              className="rounded-full border border-white/70 bg-white/80 text-slate-700 hover:bg-white"
+            >
+              <Link href="/admin" className="inline-flex items-center gap-2">
+                <ArrowLeft className="h-4 w-4" /> Back to Dashboard
+              </Link>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportCsv}
+              className="rounded-full border-rose-200 text-rose-700 hover:bg-white"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Export CSV
+            </Button>
+          </div>
         </div>
 
       {/* Filters */}
-      <Card>
+      <Card className="border-0 bg-gradient-to-br from-white via-rose-50 to-amber-50 shadow-xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Filter className="h-5 w-5" />
@@ -320,11 +338,16 @@ export default function AdminPestControlPage() {
               </Select>
             </div>
           </div>
-          <div className="flex gap-2 mt-4">
-            <Button onClick={loadData} size="sm">
+          <div className="mt-4 flex gap-2">
+            <Button onClick={loadData} size="sm" className="rounded-full bg-rose-600 text-white hover:bg-rose-500">
               Apply Filters
             </Button>
-            <Button onClick={clearFilters} variant="outline" size="sm">
+            <Button
+              onClick={clearFilters}
+              variant="outline"
+              size="sm"
+              className="rounded-full border-slate-200 text-slate-600 hover:bg-white"
+            >
               Clear
             </Button>
           </div>
@@ -333,7 +356,7 @@ export default function AdminPestControlPage() {
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2">
-        <Card>
+        <Card className="border-0 bg-white/90 shadow-xl">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Bug className="h-5 w-5 text-orange-600" />
@@ -346,7 +369,7 @@ export default function AdminPestControlPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-red-200 bg-red-50">
+        <Card className="border-0 bg-gradient-to-br from-rose-50 to-amber-50 shadow-xl">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-red-700">
               <AlertTriangle className="h-5 w-5" />
@@ -366,7 +389,7 @@ export default function AdminPestControlPage() {
 
       {/* Recurring Issues Alert */}
       {recurringIssues.length > 0 && (
-        <Card className="border-red-200">
+        <Card className="border-0 bg-white shadow-xl ring-1 ring-rose-100">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-red-700">
               <AlertTriangle className="h-5 w-5" />
@@ -410,7 +433,7 @@ export default function AdminPestControlPage() {
       )}
 
       {/* Pest Summary */}
-      <Card>
+      <Card className="border-0 bg-white/95 shadow-xl">
         <CardHeader>
           <CardTitle>Pest Summary</CardTitle>
           <CardDescription>
@@ -449,7 +472,7 @@ export default function AdminPestControlPage() {
       </Card>
 
       {/* Detailed Records */}
-      <Card>
+      <Card className="border-0 bg-white/95 shadow-xl">
         <CardHeader>
           <CardTitle>Detailed Pest Control Records</CardTitle>
           <CardDescription>

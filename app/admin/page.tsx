@@ -1,7 +1,7 @@
 "use client"
-import { useEffect, useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { format, formatDistanceToNow } from 'date-fns';
 import {
   Activity,
@@ -108,85 +108,16 @@ const demoStats: DashboardStats = {
   },
 };
 
-interface SummaryCardProps {
-  title: string;
-  description: string;
-  metric: string;
-  status: DecisionStatus;
-  icon: React.ReactNode;
-  trendLabel?: string;
-  trendValue?: string;
-  footnote?: string;
-  onClick?: () => void;
-}
-
-const summaryStatusTokens: Record<DecisionStatus, { badge: string; metric: string; dot: string }> = {
-  good: {
-    badge: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-    metric: 'text-emerald-600',
-    dot: 'text-emerald-500 bg-emerald-500/10',
-  },
-  warn: {
-    badge: 'bg-amber-50 text-amber-700 border border-amber-200',
-    metric: 'text-amber-600',
-    dot: 'text-amber-500 bg-amber-500/10',
-  },
-  bad: {
-    badge: 'bg-rose-50 text-rose-700 border border-rose-200',
-    metric: 'text-rose-600',
-    dot: 'text-rose-500 bg-rose-500/10',
-  },
+const decisionLabel: Record<DecisionStatus, string> = {
+  good: 'Stable',
+  warn: 'Watch',
+  bad: 'Action Needed',
 };
-
-function SummaryCard({ title, description, metric, status, icon, trendLabel, trendValue, footnote, onClick }: SummaryCardProps) {
-  const tokens = summaryStatusTokens[status];
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (!onClick) return;
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      onClick();
-    }
-  };
-
-  return (
-    <Card
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onClick={onClick}
-      onKeyDown={handleKeyDown}
-      className={cn(
-        'flex h-full flex-col justify-between border border-slate-200 bg-white shadow-sm transition-colors duration-200',
-        onClick && 'cursor-pointer hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40'
-      )}
-    >
-      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
-        <div>
-          <p className="text-xs uppercase tracking-wider text-slate-500">{title}</p>
-          <CardTitle className="mt-2 text-3xl font-semibold text-slate-900">{metric}</CardTitle>
-        </div>
-        <div className={cn('rounded-xl p-2.5', tokens.dot)}>{icon}</div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <p className="text-sm text-slate-600">{description}</p>
-        <div className={cn('inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide', tokens.badge)}>
-          {status === 'good' ? 'On Track' : status === 'warn' ? 'Watch' : 'Action Needed'}
-        </div>
-        {trendLabel && trendValue ? (
-          <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-            <p className="text-xs uppercase tracking-wide text-slate-500">{trendLabel}</p>
-            <p className={cn('text-sm font-semibold', tokens.metric)}>{trendValue}</p>
-          </div>
-        ) : null}
-        {footnote ? <p className="text-xs text-slate-500">{footnote}</p> : null}
-      </CardContent>
-    </Card>
-  );
-}
 
 export default function AdminDashboardPage() {
   const { toast } = useToast();
   const router = useRouter();
+  const pathname = usePathname();
 
   const [stats, setStats] = useState<DashboardStats | null>(demoStats);
   const [loading, setLoading] = useState(false);
@@ -234,8 +165,26 @@ export default function AdminDashboardPage() {
     } else if (selectedDate) {
       params.set('date', selectedDate);
     }
+    if (selectedArea) {
+      params.set('area', selectedArea);
+    }
+    if (selectedShift) {
+      params.set('shift', selectedShift);
+    }
+    if (selectedCategory) {
+      params.set('category', selectedCategory);
+    }
     return params.toString();
-  }, [selectedStation, dateFilterMode, dateRange.from, dateRange.to, selectedDate]);
+  }, [
+    selectedStation,
+    dateFilterMode,
+    dateRange.from,
+    dateRange.to,
+    selectedDate,
+    selectedArea,
+    selectedShift,
+    selectedCategory,
+  ]);
 
   const detailQuerySuffix = sharedQueryString ? `?${sharedQueryString}` : '';
   const chemicalDetailHref = `/admin/chemical-usage${detailQuerySuffix}`;
@@ -308,6 +257,9 @@ export default function AdminDashboardPage() {
         params.set('date', selectedDate);
       }
       if (selectedStation) params.set('station_id', selectedStation);
+      if (selectedArea) params.set('area', selectedArea);
+      if (selectedShift) params.set('shift', selectedShift);
+      if (selectedCategory) params.set('category', selectedCategory);
       const data = await apiFetch(
         `/admin/station-pulse${params.toString() ? `?${params.toString()}` : ''}`
       );
@@ -578,6 +530,27 @@ export default function AdminDashboardPage() {
     ? `${pestStats.pest_types_handled} pest types across ${pestStats.stations_serviced} stations`
     : 'No pest data';
 
+  const alertsList = pulse?.alerts || [];
+  const machineryInUse = machineryStats?.total_usage_records ?? 0;
+  const machineryFaultyAlerts = alertsList.filter((alert) =>
+    alert.alert_type?.toLowerCase().includes('machinery'),
+  ).length;
+  const machineryMaintenanceAlerts = alertsList.filter((alert) =>
+    alert.alert_type?.toLowerCase().includes('maintenance'),
+  ).length;
+  const pestRecurringAlerts = alertsList.filter((alert) =>
+    alert.alert_type?.toLowerCase().includes('pest'),
+  ).length;
+  const pestActiveIssues = pestStats?.total_activities ?? 0;
+  const chemicalLowStock = inventoryStats?.low_stock_count ?? 0;
+  const chemicalConsumptionSignal = Number.isFinite(avgChemicalUse)
+    ? avgChemicalUse.toFixed(1)
+    : '0.0';
+  const pendingExports = pulse?.metrics?.pendingExports ?? 0;
+  const complianceScore = pulse?.metrics?.avgComplianceScore ?? null;
+  const trendRecords = chemicalStats?.total_usage_records ?? 0;
+  const trendStations = staffStats?.stations_covered ?? 0;
+
   const navItems = [
     {
       label: 'Machinery',
@@ -617,32 +590,125 @@ export default function AdminDashboardPage() {
     },
   ];
 
-  const limitedAlerts = (pulse?.alerts || []).slice(0, 4);
+  const sidebarAccents: Record<
+    string,
+    {
+      accentBar: string;
+      iconActive: string;
+      iconInactive: string;
+    }
+  > = {
+    Machinery: {
+      accentBar: 'bg-amber-400',
+      iconActive: 'text-amber-600',
+      iconInactive: 'text-amber-300',
+    },
+    Chemicals: {
+      accentBar: 'bg-sky-400',
+      iconActive: 'text-sky-600',
+      iconInactive: 'text-sky-300',
+    },
+    'Pest Control': {
+      accentBar: 'bg-emerald-400',
+      iconActive: 'text-emerald-600',
+      iconInactive: 'text-emerald-300',
+    },
+    Reports: {
+      accentBar: 'bg-violet-400',
+      iconActive: 'text-violet-500',
+      iconInactive: 'text-violet-300',
+    },
+    Compliance: {
+      accentBar: 'bg-rose-400',
+      iconActive: 'text-rose-500',
+      iconInactive: 'text-rose-300',
+    },
+    Management: {
+      accentBar: 'bg-lime-400',
+      iconActive: 'text-lime-600',
+      iconInactive: 'text-lime-300',
+    },
+  };
+
+  const navGroups = [
+    {
+      label: 'OPERATIONS',
+      items: [navItems[0], navItems[1], navItems[2]],
+    },
+    {
+      label: 'OVERSIGHT',
+      items: [navItems[3], navItems[4]],
+    },
+    {
+      label: 'PLANNING',
+      items: [navItems[5]],
+    },
+  ];
+
+  const limitedAlerts = alertsList.slice(0, 4);
   const alertCount = pulse?.metrics?.activeAlerts ?? limitedAlerts.length;
 
   return (
-    <div className="flex min-h-screen bg-slate-50 px-4 py-6 md:px-8 md:py-8">
-      <aside className="hidden w-72 flex-shrink-0 rounded-3xl border border-indigo-100 bg-gradient-to-b from-indigo-900 via-indigo-800 to-slate-900 px-6 py-8 text-white lg:flex lg:flex-col">
+    <div className="flex min-h-screen bg-slate-50 px-3 py-6 md:px-5 md:py-8">
+      <aside className="hidden w-64 flex-shrink-0 rounded-3xl border border-indigo-100 bg-gradient-to-b from-indigo-900 via-indigo-800 to-slate-900 px-4 py-7 text-white lg:flex lg:flex-col">
         <div className="mb-8 space-y-1">
           <p className="text-xs font-semibold uppercase tracking-wide text-white/70">Control Center</p>
           <p className="text-2xl font-semibold text-white">Admin Navigation</p>
           <p className="text-sm text-white/80">Choose a module to open detailed views. All selections respect the filters above.</p>
         </div>
-        <nav className="space-y-2">
-          {navItems.map((item) => (
-            <Link
-              key={item.label}
-              href={item.href}
-              className="flex items-start gap-3 rounded-xl border border-white/20 bg-white/10 px-3 py-3 text-left text-white transition hover:bg-white/20"
-            >
-              <span className="mt-1 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-white/90 text-indigo-700">
-                <item.icon className="h-5 w-5" />
-              </span>
-              <div>
-                <p className="font-medium text-white">{item.label}</p>
-                <p className="text-sm text-white/80">{item.description}</p>
-              </div>
-            </Link>
+        <nav className="space-y-5">
+          {navGroups.map((group) => (
+            <div key={group.label} className="space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-white/60">{group.label}</p>
+              {group.items.map((item) => {
+                if (!item) return null;
+                const baseHref = item.href.split('#')[0].split('?')[0];
+                const isActive = pathname === baseHref;
+                const accent = sidebarAccents[item.label] || {
+                  accentBar: 'bg-white',
+                  iconActive: 'text-indigo-700',
+                  iconInactive: 'text-indigo-300',
+                };
+                return (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    className={cn(
+                      'relative flex items-start gap-3 rounded-2xl border border-white/15 px-3.5 py-3.5 text-left text-white/90 transition',
+                      'hover:bg-white/8',
+                      isActive ? 'bg-white/12 shadow-lg' : 'bg-white/5',
+                    )}
+                  >
+                    {isActive ? (
+                      <span
+                        className={cn(
+                          'absolute inset-y-3 left-2 w-1 rounded-full',
+                          accent.accentBar,
+                        )}
+                        aria-hidden
+                      />
+                    ) : null}
+                    <span
+                      className={cn(
+                        'mt-1 inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-white/5',
+                        isActive && 'bg-white',
+                      )}
+                    >
+                      <item.icon
+                        className={cn(
+                          'h-5 w-5',
+                          isActive ? accent.iconActive : accent.iconInactive,
+                        )}
+                      />
+                    </span>
+                    <div className="pl-1">
+                      <p className="font-medium text-white">{item.label}</p>
+                      <p className="text-sm text-white/80">{item.description}</p>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
           ))}
         </nav>
         <div className="mt-auto rounded-xl border border-white/20 bg-white/10 px-3 py-4 text-xs text-white/80">
@@ -650,8 +716,10 @@ export default function AdminDashboardPage() {
         </div>
       </aside>
 
+  <div className="hidden lg:flex w-px mx-3 rounded-full bg-gradient-to-b from-slate-200 via-slate-200/70 to-transparent" aria-hidden />
+
       <main className="flex-1 rounded-3xl bg-white/90 shadow-lg">
-        <section className="sticky top-0 z-10 rounded-t-3xl border-b border-transparent bg-gradient-to-r from-sky-600 via-indigo-600 to-purple-600 px-4 py-6 text-white shadow-lg sm:px-8">
+        <section className="sticky top-0 z-10 rounded-t-3xl border-b border-transparent bg-gradient-to-r from-sky-600 via-indigo-600 to-purple-600 px-4 py-6 text-white shadow-lg md:px-6">
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div className="flex-1">
@@ -670,15 +738,15 @@ export default function AdminDashboardPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex flex-1 flex-col gap-2">
+              <div className="flex flex-1 flex-col gap-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-white/70">Date Range</p>
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex rounded-full bg-slate-100 p-1 text-xs font-semibold text-slate-500">
+                <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
+                  <div className="flex w-full flex-wrap rounded-full bg-slate-100 p-1 text-xs font-semibold text-slate-500 sm:w-auto">
                     <Button
                       type="button"
                       size="sm"
                       variant={dateFilterMode === 'single' ? 'default' : 'ghost'}
-                      className="rounded-full"
+                      className="rounded-full flex-1 sm:flex-none"
                       onClick={() => setDateFilterMode('single')}
                     >
                       Single day
@@ -687,14 +755,14 @@ export default function AdminDashboardPage() {
                       type="button"
                       size="sm"
                       variant={dateFilterMode === 'range' ? 'default' : 'ghost'}
-                      className="rounded-full"
+                      className="rounded-full flex-1 sm:flex-none"
                       onClick={() => setDateFilterMode('range')}
                     >
                       Range
                     </Button>
                   </div>
                   {dateFilterMode === 'single' ? (
-                    <div className="flex items-center gap-2">
+                    <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center">
                       <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="h-10 rounded-xl border-white/40 bg-white/20 text-white" />
                       <Button
                         type="button"
@@ -710,14 +778,14 @@ export default function AdminDashboardPage() {
                       </Button>
                     </div>
                   ) : (
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                       <Input
                         type="date"
                         value={dateRange.from}
                         onChange={(e) => setDateRange((prev) => ({ ...prev, from: e.target.value }))}
                         className="h-10 rounded-xl border-white/40 bg-white/20 text-white"
                       />
-                      <span className="text-sm font-medium text-slate-500">to</span>
+                      <span className="text-sm font-medium text-slate-200 sm:text-slate-500">to</span>
                       <Input
                         type="date"
                         value={dateRange.to}
@@ -744,7 +812,7 @@ export default function AdminDashboardPage() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="text-white"
+                className="text-white md:self-end"
                 onClick={() => setShowAdvancedFilters((prev) => !prev)}
               >
                 <Filter className="mr-2 h-4 w-4" /> Advanced filters
@@ -802,7 +870,7 @@ export default function AdminDashboardPage() {
           </div>
         </section>
 
-        <div className="space-y-6 px-4 py-8 sm:px-8">
+        <div className="space-y-6 px-4 py-8 md:px-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs uppercase tracking-wide text-slate-500">Current view</p>
@@ -815,68 +883,250 @@ export default function AdminDashboardPage() {
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <SummaryCard
-              title="Staff Status"
-              description={staffContext}
-              metric={staffMetric || '—'}
-              status={staffStatus}
-              icon={<Users className="h-5 w-5" />}
-              trendLabel="Reserve"
-              trendValue={staffReserveValue || 'Not available'}
-              footnote={staffReserveNote}
-            />
-            <SummaryCard
-              title="Inventory Health"
-              description={inventoryContext}
-              metric={inventoryStats ? `${inventoryStats.total_chemicals - lowStock}/${inventoryStats.total_chemicals}` : '—'}
-              status={inventoryStatus}
-              icon={<Package className="h-5 w-5" />}
-              trendLabel="Low stock"
-              trendValue={inventoryMetric}
-              footnote={inventoryReserveNote}
-              onClick={() => navigateToDetail(inventoryDetailHref)}
-            />
-            <SummaryCard
-              title="Machinery Usage"
-              description={machineryContext}
-              metric={machineryStats ? `${machineryStats.total_usage_records} logs` : '—'}
-              status={machineryStatusLevel}
-              icon={<Settings className="h-5 w-5" />}
-              trendLabel="Avg hours / use"
-              trendValue={machineryMetric}
-              onClick={() => navigateToDetail(machineryDetailHref)}
-            />
-            <SummaryCard
-              title="Pest Control"
-              description={pestContext}
-              metric={pestMetric}
-              status={pestStatus}
-              icon={<Bug className="h-5 w-5" />}
-              trendLabel="Status"
-              trendValue={pestAnswer}
-              onClick={() => navigateToDetail(pestDetailHref)}
-            />
-            <SummaryCard
-              title="Chemical Usage"
-              description={chemicalContext}
-              metric={chemicalMetric}
-              status={chemicalStatus}
-              icon={<Activity className="h-5 w-5" />}
-              trendLabel="Consumption"
-              trendValue={chemicalAnswer}
-              onClick={() => navigateToDetail(chemicalDetailHref)}
-            />
-            <SummaryCard
-              title="Active Alerts"
-              description="Signals awaiting acknowledgement"
-              metric={`${alertCount || 0}`}
-              status={alertCount === 0 ? 'good' : alertCount < 3 ? 'warn' : 'bad'}
-              icon={<Bell className="h-5 w-5" />}
-              trendLabel="Latest refresh"
-              trendValue={format(new Date(), 'HH:mm')}
-              footnote={limitedAlerts.length === 0 ? 'No alerts triggered for the selected context.' : `${limitedAlerts.length} showing below.`}
-            />
+          <div className="space-y-10">
+            <section className="space-y-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">🔥 Operational Risk</p>
+                  <h3 className="text-xl font-semibold text-slate-900">Immediate interventions</h3>
+                </div>
+                <p className="text-sm text-slate-500">Always visible at the top to highlight urgent actions.</p>
+              </div>
+              <div className="grid gap-4 lg:grid-cols-3">
+                <div className="rounded-3xl border-2 border-rose-200 border-l-8 border-l-rose-400 bg-rose-50/90 p-6 shadow-xl min-h-[260px]">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold uppercase tracking-wide text-rose-800">Machinery</p>
+                      <p className="mt-2 text-5xl font-black text-rose-950">{machineryInUse}</p>
+                      <p className="text-xs text-rose-700">Usage logs in window</p>
+                    </div>
+                    <span
+                      className={cn(
+                        'rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide',
+                        machineryStatusLevel === 'bad'
+                          ? 'bg-rose-600 text-white'
+                          : machineryStatusLevel === 'warn'
+                            ? 'bg-amber-400 text-slate-900'
+                            : 'bg-emerald-500 text-white',
+                      )}
+                    >
+                      {decisionLabel[machineryStatusLevel]}
+                    </span>
+                  </div>
+                  <div className="mt-6 grid grid-cols-3 gap-3 text-center">
+                    {[{
+                      label: 'In Use',
+                      value: machineryInUse,
+                    }, {
+                      label: 'Faulty',
+                      value: machineryFaultyAlerts,
+                    }, {
+                      label: 'Under Maint.',
+                      value: machineryMaintenanceAlerts,
+                    }].map((item) => (
+                      <div key={item.label} className="rounded-2xl bg-white/80 p-3 shadow-sm">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{item.label}</p>
+                        <p className="mt-1 text-2xl font-bold text-slate-900">{item.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <Button
+                    variant="link"
+                    className="mt-4 px-0 text-sm font-semibold text-rose-800"
+                    onClick={() => navigateToDetail(machineryDetailHref)}
+                  >
+                    Open machinery view →
+                  </Button>
+                </div>
+                <div className="rounded-3xl border-2 border-amber-200 border-l-8 border-l-amber-400 bg-amber-50/95 p-6 shadow-xl min-h-[260px]">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold uppercase tracking-wide text-amber-800">Pest Control</p>
+                      <p className="mt-2 text-5xl font-black text-amber-950">{pestActiveIssues}</p>
+                      <p className="text-xs text-amber-700">Active issues logged</p>
+                    </div>
+                    <span
+                      className={cn(
+                        'rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide',
+                        pestStatus === 'bad'
+                          ? 'bg-rose-600 text-white'
+                          : pestStatus === 'warn'
+                            ? 'bg-amber-500 text-slate-900'
+                            : 'bg-emerald-500 text-white',
+                      )}
+                    >
+                      {decisionLabel[pestStatus]}
+                    </span>
+                  </div>
+                  <div className="mt-6 grid grid-cols-2 gap-3 text-center">
+                    <div className="rounded-2xl bg-white/80 p-3 shadow-sm">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Active Issues</p>
+                      <p className="mt-1 text-2xl font-bold text-slate-900">{pestActiveIssues}</p>
+                    </div>
+                    <div className="rounded-2xl bg-white/80 p-3 shadow-sm">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Recurring Problems</p>
+                      <p className="mt-1 text-2xl font-bold text-slate-900">{pestRecurringAlerts}</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="link"
+                    className="mt-4 px-0 text-sm font-semibold text-amber-900"
+                    onClick={() => navigateToDetail(pestDetailHref)}
+                  >
+                    Investigate pest control →
+                  </Button>
+                </div>
+                <div className="rounded-3xl border-2 border-sky-200 border-l-8 border-l-sky-400 bg-sky-50/95 p-6 shadow-xl min-h-[260px]">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold uppercase tracking-wide text-sky-900">Chemicals</p>
+                      <p className="mt-2 text-5xl font-black text-sky-950">{chemicalLowStock}</p>
+                      <p className="text-xs text-sky-700">Chemicals below min stock</p>
+                    </div>
+                    <span
+                      className={cn(
+                        'rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide',
+                        chemicalStatus === 'bad'
+                          ? 'bg-rose-600 text-white'
+                          : chemicalStatus === 'warn'
+                            ? 'bg-amber-500 text-slate-900'
+                            : 'bg-emerald-500 text-white',
+                      )}
+                    >
+                      {decisionLabel[chemicalStatus]}
+                    </span>
+                  </div>
+                  <div className="mt-6 grid grid-cols-2 gap-3 text-center">
+                    <div className="rounded-2xl bg-white/80 p-3 shadow-sm">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Low Stock</p>
+                      <p className="mt-1 text-2xl font-bold text-slate-900">{chemicalLowStock}</p>
+                    </div>
+                    <div className="rounded-2xl bg-white/80 p-3 shadow-sm">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Consumption Anomalies</p>
+                      <p className="mt-1 text-2xl font-bold text-slate-900">{chemicalConsumptionSignal}</p>
+                      <p className="text-[10px] uppercase tracking-wide text-slate-400">units / use</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="link"
+                    className="mt-4 px-0 text-sm font-semibold text-sky-900"
+                    onClick={() => navigateToDetail(chemicalDetailHref)}
+                  >
+                    Review chemical usage →
+                  </Button>
+                </div>
+              </div>
+            </section>
+
+            <section className="space-y-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-500">🟡 Resource Health</p>
+                  <h3 className="text-xl font-semibold text-slate-900">Important but not urgent</h3>
+                </div>
+                <p className="text-sm text-slate-500">Use these cards to plan staffing and supply moves.</p>
+              </div>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="rounded-2xl border border-slate-200 bg-white/85 p-4 shadow">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Staff & Manpower</p>
+                      <p className="mt-3 text-2xl font-semibold text-slate-900">{staffMetric || '—'}</p>
+                      <p className="text-sm text-slate-500">{staffContext}</p>
+                    </div>
+                    <Users className="h-5 w-5 text-slate-400" />
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-slate-500">Reserve</p>
+                      <p className="text-base font-semibold text-slate-900">{staffReserveValue || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-slate-500">Status</p>
+                      <p className="text-base font-semibold text-slate-900">{decisionLabel[staffStatus]}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white/85 p-4 shadow">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Inventory Health</p>
+                      <p className="mt-3 text-2xl font-semibold text-slate-900">{inventoryStats ? `${inventoryStats.total_chemicals - lowStock}/${inventoryStats.total_chemicals}` : '—'}</p>
+                      <p className="text-sm text-slate-500">{inventoryContext}</p>
+                    </div>
+                    <Package className="h-5 w-5 text-slate-400" />
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-slate-500">Low Stock</p>
+                      <p className="text-base font-semibold text-slate-900">{inventoryMetric}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-slate-500">Reserve health</p>
+                      <p className="text-base font-semibold text-slate-900">{inventoryReserveNote}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white/85 p-4 shadow">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Alerts Summary</p>
+                      <p className="mt-3 text-2xl font-semibold text-slate-900">{alertCount || 0}</p>
+                      <p className="text-sm text-slate-500">Signals queued for acknowledgement</p>
+                    </div>
+                    <Bell className="h-5 w-5 text-slate-400" />
+                  </div>
+                  <div className="mt-4 text-sm text-slate-600">
+                    {limitedAlerts.length === 0 ? 'No alerts triggered for the selected context.' : `${limitedAlerts.length} surfaced below.`}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section className="space-y-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">🔵 Oversight & Review</p>
+                  <h3 className="text-xl font-semibold text-slate-900">Monitoring and analysis</h3>
+                </div>
+                <p className="text-sm text-slate-500">Lower visual weight cards for periodic checks.</p>
+              </div>
+              <div className="grid gap-3 md:grid-cols-3">
+                <Link
+                  href="/admin/reports"
+                  className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 text-left text-slate-700 shadow-sm transition hover:border-slate-300"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-slate-500">Reports</p>
+                      <p className="mt-2 text-2xl font-semibold text-slate-900">{pendingExports}</p>
+                      <p className="text-xs text-slate-500">Pending exports</p>
+                    </div>
+                    <FileDown className="h-4 w-4 text-slate-400" />
+                  </div>
+                </Link>
+                <div className="rounded-xl border border-slate-200 bg-slate-50/30 p-4 text-slate-700">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-slate-500">Compliance</p>
+                      <p className="mt-2 text-2xl font-semibold text-slate-900">{complianceScore ? `${complianceScore.toFixed(1)}%` : '—'}</p>
+                      <p className="text-xs text-slate-500">Average score</p>
+                    </div>
+                    <ShieldCheck className="h-4 w-4 text-slate-400" />
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50/30 p-4 text-slate-700">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-slate-500">Trends</p>
+                      <p className="mt-2 text-2xl font-semibold text-slate-900">{trendRecords}</p>
+                      <p className="text-xs text-slate-500">Usage records across {trendStations} stations</p>
+                    </div>
+                    <Activity className="h-4 w-4 text-slate-400" />
+                  </div>
+                </div>
+              </div>
+            </section>
           </div>
 
           <Card className="border border-slate-200 bg-white">

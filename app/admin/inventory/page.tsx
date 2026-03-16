@@ -1,7 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Package } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CheckCircle2, Package } from 'lucide-react';
 
 import {
   Card,
@@ -18,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
@@ -106,22 +108,32 @@ export default function AdminInventoryPage() {
   }, [token]);
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-6 md:px-8 md:py-10">
-      <div className="mx-auto max-w-6xl space-y-6 rounded-3xl bg-white/95 p-4 shadow-lg ring-1 ring-black/5 md:p-8">
-        <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-gradient-to-br from-sky-50 via-emerald-50 to-lime-50 px-4 py-6 md:px-8 md:py-10">
+      <div className="mx-auto max-w-6xl space-y-6 rounded-4xl bg-white/80 p-4 shadow-2xl ring-1 ring-emerald-100 backdrop-blur md:p-8">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-gradient-to-r from-sky-100 via-white to-emerald-100 px-5 py-4">
           <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">Supply Pulse</p>
             <h2 className="text-3xl font-bold tracking-tight text-slate-900">
               Inventory Status
             </h2>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-sm text-slate-600">
               Monitor chemical stock levels and plan timely purchases
             </p>
           </div>
+          <Button
+            asChild
+            variant="ghost"
+            className="rounded-full border border-white/60 bg-white/80 text-slate-700 hover:bg-white"
+          >
+            <Link href="/admin" className="inline-flex items-center gap-2">
+              <ArrowLeft className="h-4 w-4" /> Back to Dashboard
+            </Link>
+          </Button>
         </div>
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+        <Card className="border-0 bg-white/90 shadow-xl">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Package className="h-5 w-5 text-blue-600" />
@@ -136,7 +148,7 @@ export default function AdminInventoryPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-red-200 bg-red-50">
+        <Card className="border-0 bg-gradient-to-br from-rose-50 to-amber-50 shadow-xl">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-red-700">
               <AlertTriangle className="h-5 w-5" />
@@ -151,7 +163,7 @@ export default function AdminInventoryPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-green-200 bg-green-50">
+        <Card className="border-0 bg-gradient-to-br from-emerald-50 to-lime-50 shadow-xl">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-green-700">
               <CheckCircle2 className="h-5 w-5" />
@@ -169,7 +181,7 @@ export default function AdminInventoryPage() {
 
       {/* Low Stock Alert */}
       {summary.low_stock_count > 0 && (
-        <Card className="border-red-200">
+        <Card className="border-0 bg-white shadow-xl ring-1 ring-rose-100">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-red-700">
               <AlertTriangle className="h-5 w-5" />
@@ -217,7 +229,7 @@ export default function AdminInventoryPage() {
       )}
 
       {/* Complete Inventory Table */}
-      <Card>
+      <Card className="border-0 bg-white/95 shadow-xl">
         <CardHeader>
           <CardTitle>Complete Inventory Status</CardTitle>
           <CardDescription>

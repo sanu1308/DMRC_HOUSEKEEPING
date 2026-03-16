@@ -73,6 +73,48 @@ type FieldErrors = Partial<
   >
 >;
 
+const statusBadgeStyles: Record<string, string> = {
+  Completed: 'bg-emerald-100 text-emerald-900 border border-emerald-200',
+  Scheduled: 'bg-sky-100 text-sky-900 border border-sky-200',
+  Pending: 'bg-amber-100 text-amber-900 border border-amber-200',
+};
+
+const getStatusBadgeClass = (status?: string | null) =>
+  statusBadgeStyles[status || ''] || 'bg-slate-100 text-slate-600 border border-slate-200';
+
+const rowTintByStatus: Record<string, string> = {
+  Completed: 'bg-gradient-to-r from-emerald-50/80 via-white to-white',
+  Scheduled: 'bg-gradient-to-r from-sky-50/80 via-white to-white',
+  Pending: 'bg-gradient-to-r from-amber-50/80 via-white to-white',
+};
+
+const badgePalette = [
+  'bg-rose-50 text-rose-700 border border-rose-100',
+  'bg-sky-50 text-sky-700 border border-sky-100',
+  'bg-lime-50 text-lime-700 border border-lime-100',
+  'bg-amber-50 text-amber-800 border border-amber-100',
+];
+
+const getBadgeClass = (label?: string | null) => {
+  if (!label) {
+    return 'bg-slate-100 text-slate-600 border border-slate-200';
+  }
+  const safeLabel = label.trim();
+  const paletteIndex = Math.abs(safeLabel.length + safeLabel.charCodeAt(0)) % badgePalette.length;
+  return badgePalette[paletteIndex];
+};
+
+const formatServiceDate = (value?: string | null) => {
+  if (!value) {
+    return '—';
+  }
+  try {
+    return format(new Date(value), 'dd MMM yyyy');
+  } catch (error) {
+    return value;
+  }
+};
+
 function decodeToken(token: string | null): DecodedUser {
   if (!token) {
     return { role: null, stationId: null };
@@ -827,53 +869,122 @@ export default function PestControlPage() {
         </div>
       </div>
 
-      <div className="rounded-md border bg-white">
+      <div className="overflow-hidden rounded-3xl border border-slate-100 bg-gradient-to-br from-white via-white to-slate-50 shadow-xl">
+        <div className="border-b border-white/10 bg-gradient-to-r from-slate-900 to-slate-800 px-6 py-4 text-white">
+          <p className="text-lg font-semibold">Pest Control Records</p>
+          <p className="text-sm text-white/80">Live log of field interventions</p>
+        </div>
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Station</TableHead>
-              <TableHead>Pest Type</TableHead>
-              <TableHead>Control Method</TableHead>
-              <TableHead>Chemical Used</TableHead>
-              <TableHead>Area Covered</TableHead>
-              <TableHead>Qty Used</TableHead>
-              <TableHead>Manpower</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Service Date</TableHead>
-              <TableHead className="w-16 text-right">Actions</TableHead>
+            <TableRow className="bg-slate-900/5 text-xs font-semibold uppercase tracking-wide text-slate-600">
+              <TableHead className="text-slate-600">Station</TableHead>
+              <TableHead className="text-slate-600">Pest Type</TableHead>
+              <TableHead className="text-slate-600">Control Method</TableHead>
+              <TableHead className="text-slate-600">Chemical Used</TableHead>
+              <TableHead className="text-slate-600">Area Covered</TableHead>
+              <TableHead className="text-slate-600">Qty Used</TableHead>
+              <TableHead className="text-slate-600">Manpower</TableHead>
+              <TableHead className="text-slate-600">Status</TableHead>
+              <TableHead className="text-slate-600">Service Date</TableHead>
+              <TableHead className="w-20 text-right text-slate-600">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center text-sm">
+                <TableCell colSpan={10} className="bg-slate-50/60 py-6 text-center text-sm text-slate-500">
                   Loading...
                 </TableCell>
               </TableRow>
             ) : records.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center text-sm">
+                <TableCell colSpan={10} className="bg-slate-50/60 py-6 text-center text-sm text-slate-500">
                   No records found.
                 </TableCell>
               </TableRow>
             ) : (
               records.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell>{r.station_name || '—'}</TableCell>
-                  <TableCell>{r.pest_type}</TableCell>
-                  <TableCell>{r.control_method}</TableCell>
-                  <TableCell>{r.chemical_used}</TableCell>
-                  <TableCell>{r.area_covered}</TableCell>
-                  <TableCell>{r.quantity_used ?? '-'}</TableCell>
-                  <TableCell>{r.manpower_used ?? '—'}</TableCell>
-                  <TableCell>{r.status}</TableCell>
-                  <TableCell>{r.service_date}</TableCell>
+                <TableRow
+                  key={r.id}
+                  className={cn(
+                    'border-b border-white/60 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg',
+                    rowTintByStatus[r.status || ''] ?? 'bg-white',
+                  )}
+                >
+                  <TableCell className="font-semibold text-slate-900">
+                    <div className="flex flex-col">
+                      <span>{r.station_name || '—'}</span>
+                      <span className="text-xs font-medium text-slate-500">#{r.id}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={cn(
+                        'inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold',
+                        getBadgeClass(r.pest_type),
+                      )}
+                    >
+                      {r.pest_type || '—'}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="rounded-full bg-white/60 px-3 py-1 text-xs font-semibold uppercase text-slate-700">
+                      {r.control_method || '—'}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span className="font-medium text-slate-900">{r.chemical_used || '—'}</span>
+                      {r.quantity_used ? (
+                        <span className="text-xs text-slate-500">{r.quantity_used} units</span>
+                      ) : null}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={cn(
+                        'inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold',
+                        getBadgeClass(r.area_covered),
+                      )}
+                    >
+                      {r.area_covered || '—'}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center rounded-full bg-slate-900/5 px-3 py-1 text-sm font-semibold text-slate-900">
+                      {r.quantity_used ?? '—'}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center rounded-full bg-white/70 px-3 py-1 text-sm font-semibold text-slate-900">
+                      {r.manpower_used ?? '—'}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={cn(
+                        'inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold',
+                        getStatusBadgeClass(r.status),
+                      )}
+                    >
+                      {r.status || '—'}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold text-slate-900">
+                        {formatServiceDate(r.service_date)}
+                      </span>
+                      <span className="text-xs text-slate-500">Service window</span>
+                    </div>
+                  </TableCell>
                   <TableCell className="text-right">
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-8 w-8 text-red-500"
+                      className="h-8 w-8 rounded-full bg-white/70 text-red-500 shadow-sm ring-1 ring-red-100 hover:bg-red-50"
                       onClick={() => handleDelete(r.id)}
+                      aria-label="Delete record"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

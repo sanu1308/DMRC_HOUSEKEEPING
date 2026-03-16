@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { ArrowLeft, Home } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -87,7 +89,27 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#1859c9] px-4 text-foreground">
+    <div className="relative flex min-h-screen items-center justify-center bg-[#1859c9] px-4 text-foreground">
+      <div className="absolute left-0 right-0 top-0 z-10 flex items-center justify-between px-4 py-4 text-white">
+        <Button
+          variant="ghost"
+          className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-900/30 backdrop-blur hover:bg-white/20"
+          onClick={() => router.back()}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </Button>
+        <Button
+          asChild
+          variant="ghost"
+          className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-900/30 backdrop-blur hover:bg-white/20"
+        >
+          <Link href="/">
+            <Home className="h-4 w-4" />
+            Home
+          </Link>
+        </Button>
+      </div>
       <div className="mx-auto w-full max-w-md">
         <Card className="border-none bg-gradient-to-b from-slate-50 to-sky-50 shadow-xl shadow-slate-900/20">
           <CardHeader className="pb-4">

@@ -1,8 +1,24 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { Download, FileText, Calendar, TrendingUp } from 'lucide-react';
+import { Download, FileText, Calendar, TrendingUp, ArrowLeft } from 'lucide-react';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,6 +57,9 @@ import { useChemicals } from '@/hooks/use-chemicals';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 const API_BASE = `${API_URL}/api`;
 
+const CHART_COLORS = ['#0ea5e9', '#6366f1', '#f97316', '#10b981', '#f43f5e', '#a855f7'];
+const PIE_COLORS = ['#0ea5e9', '#22d3ee', '#34d399', '#facc15', '#fb7185', '#c084fc'];
+
 type CleaningLog = {
   id: number;
   date: string;
@@ -78,6 +97,58 @@ type StaffRecord = {
   number_of_persons: number;
 };
 
+type CleaningTypeBreakdown = {
+  cleaning_type: string | null;
+  count: number;
+};
+
+type CleaningSummary = {
+  total_cleaning_activities: number;
+  stations_cleaned: number;
+  staff_involved: number;
+  days_covered: number;
+  by_cleaning_type?: CleaningTypeBreakdown[];
+};
+
+type ChemicalTrendPoint = {
+  usage_date: string;
+  total_usages: number;
+  total_quantity: number;
+};
+
+type ChemicalSummary = {
+  month: string;
+  total_chemicals_used: number;
+  total_quantity_consumed: number;
+  total_usage_records: number;
+  avg_daily_consumption: string | number;
+};
+
+type StaffStationSummary = {
+  station_name: string;
+  total_entries: number;
+  total_persons: number;
+  avg_persons_per_day: number;
+  days_covered: number;
+};
+
+type StaffShiftSummary = {
+  shift: string;
+  total_entries: number;
+  total_persons: number;
+  avg_persons: number;
+};
+
+type StaffSummary = {
+  total_staff_entries: number;
+  total_persons_deployed: number;
+  avg_persons_per_entry: string;
+  stations_covered: number;
+  days_covered: number;
+  by_station: StaffStationSummary[];
+  by_shift: StaffShiftSummary[];
+};
+
 export default function AdminReportsPage() {
   const { toast } = useToast();
   const { stations } = useStations();
@@ -90,7 +161,7 @@ export default function AdminReportsPage() {
 
   // Daily Cleaning Report State
   const [cleaningLogs, setCleaningLogs] = useState<CleaningLog[]>([]);
-  const [cleaningSummary, setCleaningSummary] = useState<any>(null);
+  const [cleaningSummary, setCleaningSummary] = useState<CleaningSummary | null>(null);
   const [cleaningFrom, setCleaningFrom] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [cleaningTo, setCleaningTo] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [cleaningStation, setCleaningStation] = useState('');
@@ -98,16 +169,17 @@ export default function AdminReportsPage() {
 
   // Chemical Consumption Report State
   const [chemicalData, setChemicalData] = useState<ChemicalConsumption[]>([]);
-  const [chemicalSummary, setChemicalSummary] = useState<any>(null);
+  const [chemicalSummary, setChemicalSummary] = useState<ChemicalSummary | null>(null);
   const [chemicalMonth, setChemicalMonth] = useState(String(new Date().getMonth() + 1));
   const [chemicalYear, setChemicalYear] = useState(String(new Date().getFullYear()));
   const [chemicalStation, setChemicalStation] = useState('');
   const [chemicalId, setChemicalId] = useState('');
   const [chemicalLoading, setChemicalLoading] = useState(false);
+  const [chemicalTrend, setChemicalTrend] = useState<ChemicalTrendPoint[]>([]);
 
   // Staff Utilization Report State
   const [staffRecords, setStaffRecords] = useState<StaffRecord[]>([]);
-  const [staffSummary, setStaffSummary] = useState<any>(null);
+  const [staffSummary, setStaffSummary] = useState<StaffSummary | null>(null);
   const [staffFrom, setStaffFrom] = useState(
     format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd')
   );
@@ -174,6 +246,7 @@ export default function AdminReportsPage() {
 
       setChemicalData(data.data || []);
       setChemicalSummary(data.summary || null);
+      setChemicalTrend(data.daily_trend || []);
     } catch (err: any) {
       toast({
         title: 'Failed to load chemical consumption report',
@@ -301,22 +374,72 @@ export default function AdminReportsPage() {
     { value: '12', label: 'December' },
   ];
 
+  const cleaningTypeChartData = useMemo(() => {
+    if (!cleaningSummary?.by_cleaning_type) return [];
+    return cleaningSummary.by_cleaning_type.map((item) => ({
+      type: item.cleaning_type || 'Unspecified',
+      count: Number(item.count) || 0,
+    }));
+  }, [cleaningSummary]);
+
+  const chemicalTrendChartData = useMemo(() => {
+    return chemicalTrend.map((point) => ({
+      date: point.usage_date ? format(new Date(point.usage_date), 'MMM d') : '—',
+      quantity: Number(point.total_quantity) || 0,
+      usages: Number(point.total_usages) || 0,
+    }));
+  }, [chemicalTrend]);
+
+  const chemicalShareData = useMemo(() => {
+    if (!chemicalData.length) return [];
+    return chemicalData.slice(0, 6).map((item) => ({
+      name: item.chemical_name || 'Unknown',
+      value: Number(item.total_quantity) || 0,
+    }));
+  }, [chemicalData]);
+
+  const staffStationChartData = useMemo(() => {
+    if (!staffSummary?.by_station) return [];
+    return staffSummary.by_station.slice(0, 5).map((item) => ({
+      station: item.station_name || '—',
+      persons: Number(item.total_persons) || 0,
+    }));
+  }, [staffSummary]);
+
+  const staffShiftChartData = useMemo(() => {
+    if (!staffSummary?.by_shift) return [];
+    return staffSummary.by_shift.map((item) => ({
+      shift: item.shift || 'Unspecified',
+      persons: Number(item.total_persons) || 0,
+    }));
+  }, [staffSummary]);
+
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-6 md:px-8 md:py-10">
-      <div className="mx-auto max-w-6xl space-y-6 rounded-3xl bg-white/95 p-4 shadow-lg ring-1 ring-black/5 md:p-8">
-        <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-sky-50 to-emerald-50 px-4 py-6 md:px-8 md:py-10">
+      <div className="mx-auto max-w-6xl space-y-6 rounded-4xl bg-white/80 p-4 shadow-2xl ring-1 ring-sky-100 backdrop-blur md:p-8">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-gradient-to-r from-indigo-100 via-white to-emerald-100 px-5 py-4">
           <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">Insights Hub</p>
             <h2 className="text-3xl font-bold tracking-tight text-slate-900">
               Admin Reports
             </h2>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-sm text-slate-600">
               Generate comprehensive reports for audit, review, and presentations
             </p>
           </div>
+          <Button
+            asChild
+            variant="ghost"
+            className="rounded-full border border-white/60 bg-white/80 text-slate-700 hover:bg-white"
+          >
+            <Link href="/admin" className="inline-flex items-center gap-2">
+              <ArrowLeft className="h-4 w-4" /> Back to Dashboard
+            </Link>
+          </Button>
         </div>
 
       <Tabs defaultValue="daily-cleaning" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-white/70 p-1 text-sm font-semibold text-slate-600">
           <TabsTrigger value="daily-cleaning" onClick={loadDailyCleaningReport}>
             <FileText className="mr-2 h-4 w-4" />
             Daily Cleaning
@@ -333,7 +456,7 @@ export default function AdminReportsPage() {
 
         {/* Daily Cleaning Report */}
         <TabsContent value="daily-cleaning" className="space-y-4">
-          <Card>
+          <Card className="border-0 bg-gradient-to-br from-white via-sky-50 to-emerald-50 shadow-lg">
             <CardHeader>
               <CardTitle>Filters</CardTitle>
               <CardDescription>Select date range and station to generate report</CardDescription>
@@ -387,7 +510,7 @@ export default function AdminReportsPage() {
 
           {cleaningSummary && (
             <div className="grid gap-4 md:grid-cols-4">
-              <Card>
+              <Card className="border-0 bg-white/90 shadow-xl">
                 <CardHeader>
                   <CardTitle>Total Activities</CardTitle>
                 </CardHeader>
@@ -395,7 +518,7 @@ export default function AdminReportsPage() {
                   <p className="text-2xl font-bold">{cleaningSummary.total_cleaning_activities}</p>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="border-0 bg-white/90 shadow-xl">
                 <CardHeader>
                   <CardTitle>Stations Cleaned</CardTitle>
                 </CardHeader>
@@ -403,7 +526,7 @@ export default function AdminReportsPage() {
                   <p className="text-2xl font-bold">{cleaningSummary.stations_cleaned}</p>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="border-0 bg-white/90 shadow-xl">
                 <CardHeader>
                   <CardTitle>Staff Involved</CardTitle>
                 </CardHeader>
@@ -411,7 +534,7 @@ export default function AdminReportsPage() {
                   <p className="text-2xl font-bold">{cleaningSummary.staff_involved}</p>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="border-0 bg-white/90 shadow-xl">
                 <CardHeader>
                   <CardTitle>Days Covered</CardTitle>
                 </CardHeader>
@@ -422,7 +545,27 @@ export default function AdminReportsPage() {
             </div>
           )}
 
-          <Card>
+          {cleaningTypeChartData.length ? (
+            <Card className="border-0 bg-white/95 shadow-xl">
+              <CardHeader>
+                <CardTitle>Cleaning Activities by Type</CardTitle>
+                <CardDescription>Real usage counts grouped by cleaning type</CardDescription>
+              </CardHeader>
+              <CardContent className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={cleaningTypeChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="type" tick={{ fontSize: 12 }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                    <Tooltip cursor={{ fill: 'rgba(15,23,42,0.04)' }} />
+                    <Bar dataKey="count" radius={[8, 8, 0, 0]} fill={CHART_COLORS[0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          <Card className="border-0 bg-white/95 shadow-xl">
             <CardHeader>
               <CardTitle>Cleaning Activities</CardTitle>
               <CardDescription>Detailed log of all cleaning operations</CardDescription>
@@ -474,7 +617,7 @@ export default function AdminReportsPage() {
 
         {/* Chemical Consumption Report */}
         <TabsContent value="chemical-consumption" className="space-y-4">
-          <Card>
+          <Card className="border-0 bg-gradient-to-br from-white via-indigo-50 to-emerald-50 shadow-lg">
             <CardHeader>
               <CardTitle>Filters</CardTitle>
               <CardDescription>Select month, year, and filters to generate report</CardDescription>
@@ -558,7 +701,7 @@ export default function AdminReportsPage() {
 
           {chemicalSummary && (
             <div className="grid gap-4 md:grid-cols-4">
-              <Card>
+              <Card className="border-0 bg-white/90 shadow-xl">
                 <CardHeader>
                   <CardTitle>Chemicals Used</CardTitle>
                 </CardHeader>
@@ -566,7 +709,7 @@ export default function AdminReportsPage() {
                   <p className="text-2xl font-bold">{chemicalSummary.total_chemicals_used}</p>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="border-0 bg-white/90 shadow-xl">
                 <CardHeader>
                   <CardTitle>Total Quantity</CardTitle>
                 </CardHeader>
@@ -574,7 +717,7 @@ export default function AdminReportsPage() {
                   <p className="text-2xl font-bold">{chemicalSummary.total_quantity_consumed}</p>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="border-0 bg-white/90 shadow-xl">
                 <CardHeader>
                   <CardTitle>Usage Records</CardTitle>
                 </CardHeader>
@@ -582,7 +725,7 @@ export default function AdminReportsPage() {
                   <p className="text-2xl font-bold">{chemicalSummary.total_usage_records}</p>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="border-0 bg-white/90 shadow-xl">
                 <CardHeader>
                   <CardTitle>Avg Daily Consumption</CardTitle>
                 </CardHeader>
@@ -593,7 +736,78 @@ export default function AdminReportsPage() {
             </div>
           )}
 
-          <Card>
+          {(chemicalTrendChartData.length || chemicalShareData.length) ? (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {chemicalTrendChartData.length ? (
+                <Card className="border-0 bg-white/95 shadow-xl">
+                  <CardHeader>
+                    <CardTitle>Daily Consumption Trend</CardTitle>
+                    <CardDescription>Quantity dispensed vs total usage counts</CardDescription>
+                  </CardHeader>
+                  <CardContent className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={chemicalTrendChartData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                        <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                        <Tooltip />
+                        <Legend />
+                        <Line
+                          type="monotone"
+                          dataKey="quantity"
+                          stroke={CHART_COLORS[1]}
+                          strokeWidth={2}
+                          dot={false}
+                          name="Quantity"
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="usages"
+                          stroke={CHART_COLORS[2]}
+                          strokeWidth={2}
+                          dot={{ r: 3 }}
+                          name="Usage Records"
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              ) : null}
+
+              {chemicalShareData.length ? (
+                <Card className="border-0 bg-white/95 shadow-xl">
+                  <CardHeader>
+                    <CardTitle>Top Chemicals Share</CardTitle>
+                    <CardDescription>Largest contributors by quantity</CardDescription>
+                  </CardHeader>
+                  <CardContent className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Tooltip />
+                        <Legend />
+                        <Pie
+                          data={chemicalShareData}
+                          dataKey="value"
+                          nameKey="name"
+                          innerRadius={60}
+                          outerRadius={100}
+                          paddingAngle={4}
+                          labelLine={false}
+                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        >
+                          {chemicalShareData.map((entry, index) => (
+                            <Cell key={entry.name} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                          ))}
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              ) : null}
+            </div>
+          ) : null}
+
+          <Card className="border-0 bg-white/95 shadow-xl">
             <CardHeader>
               <CardTitle>Chemical Consumption Details</CardTitle>
               <CardDescription>Breakdown by chemical product</CardDescription>
@@ -655,7 +869,7 @@ export default function AdminReportsPage() {
 
         {/* Staff Utilization Report */}
         <TabsContent value="staff-utilization" className="space-y-4">
-          <Card>
+          <Card className="border-0 bg-gradient-to-br from-white via-emerald-50 to-sky-50 shadow-lg">
             <CardHeader>
               <CardTitle>Filters</CardTitle>
               <CardDescription>Select date range and station to generate report</CardDescription>
@@ -710,7 +924,7 @@ export default function AdminReportsPage() {
           {staffSummary && (
             <>
               <div className="grid gap-4 md:grid-cols-5">
-                <Card>
+                <Card className="border-0 bg-white/90 shadow-xl">
                   <CardHeader>
                     <CardTitle>Total Entries</CardTitle>
                   </CardHeader>
@@ -718,7 +932,7 @@ export default function AdminReportsPage() {
                     <p className="text-2xl font-bold">{staffSummary.total_staff_entries}</p>
                   </CardContent>
                 </Card>
-                <Card>
+                <Card className="border-0 bg-white/90 shadow-xl">
                   <CardHeader>
                     <CardTitle>Persons Deployed</CardTitle>
                   </CardHeader>
@@ -726,7 +940,7 @@ export default function AdminReportsPage() {
                     <p className="text-2xl font-bold">{staffSummary.total_persons_deployed}</p>
                   </CardContent>
                 </Card>
-                <Card>
+                <Card className="border-0 bg-white/90 shadow-xl">
                   <CardHeader>
                     <CardTitle>Avg Per Entry</CardTitle>
                   </CardHeader>
@@ -734,7 +948,7 @@ export default function AdminReportsPage() {
                     <p className="text-2xl font-bold">{staffSummary.avg_persons_per_entry}</p>
                   </CardContent>
                 </Card>
-                <Card>
+                <Card className="border-0 bg-white/90 shadow-xl">
                   <CardHeader>
                     <CardTitle>Stations</CardTitle>
                   </CardHeader>
@@ -742,7 +956,7 @@ export default function AdminReportsPage() {
                     <p className="text-2xl font-bold">{staffSummary.stations_covered}</p>
                   </CardContent>
                 </Card>
-                <Card>
+                <Card className="border-0 bg-white/90 shadow-xl">
                   <CardHeader>
                     <CardTitle>Days Covered</CardTitle>
                   </CardHeader>
@@ -752,8 +966,52 @@ export default function AdminReportsPage() {
                 </Card>
               </div>
 
+              {(staffStationChartData.length || staffShiftChartData.length) ? (
+                <div className="grid gap-4 lg:grid-cols-2">
+                  {staffStationChartData.length ? (
+                    <Card className="border-0 bg-white/95 shadow-xl">
+                      <CardHeader>
+                        <CardTitle>Top Stations by Deployment</CardTitle>
+                        <CardDescription>Heads deployed at the busiest hubs</CardDescription>
+                      </CardHeader>
+                      <CardContent className="h-72">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={staffStationChartData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                            <XAxis dataKey="station" tick={{ fontSize: 12 }} />
+                            <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                            <Tooltip />
+                            <Bar dataKey="persons" fill={CHART_COLORS[3]} radius={[6, 6, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+                  ) : null}
+
+                  {staffShiftChartData.length ? (
+                    <Card className="border-0 bg-white/95 shadow-xl">
+                      <CardHeader>
+                        <CardTitle>Shift Load Distribution</CardTitle>
+                        <CardDescription>How manpower is split across shifts</CardDescription>
+                      </CardHeader>
+                      <CardContent className="h-72">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={staffShiftChartData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                            <XAxis dataKey="shift" tick={{ fontSize: 12 }} />
+                            <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                            <Tooltip />
+                            <Bar dataKey="persons" fill={CHART_COLORS[4]} radius={[6, 6, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+                  ) : null}
+                </div>
+              ) : null}
+
               <div className="grid gap-4 md:grid-cols-2">
-                <Card>
+                <Card className="border-0 bg-white/95 shadow-xl">
                   <CardHeader>
                     <CardTitle>By Station</CardTitle>
                   </CardHeader>
@@ -779,7 +1037,7 @@ export default function AdminReportsPage() {
                   </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="border-0 bg-white/95 shadow-xl">
                   <CardHeader>
                     <CardTitle>By Shift</CardTitle>
                   </CardHeader>
@@ -808,7 +1066,7 @@ export default function AdminReportsPage() {
             </>
           )}
 
-          <Card>
+          <Card className="border-0 bg-white/95 shadow-xl">
             <CardHeader>
               <CardTitle>Staff Deployment Details</CardTitle>
               <CardDescription>Complete staff utilization records</CardDescription>

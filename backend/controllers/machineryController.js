@@ -1,4 +1,10 @@
 const pool = require('../config/db');
+const {
+  APP_TIMEZONE,
+  normalizeDateParam,
+  todayString,
+  nextDateString,
+} = require('../utils/dateUtils');
 
 const parseCount = (value, defaultValue = 0) => {
   const parsed = Number(value);
@@ -27,20 +33,19 @@ const withAvailability = (row) => ({
 
 const mapStationInventory = (row) => {
   const total = Number(row.quantity_total) || 0;
-  const inUse = Number(row.quantity_in_use) || 0;
   const faulty = Number(row.quantity_faulty) || 0;
   const maintenance = Number(row.quantity_maintenance) || 0;
-  const working = Math.max(total - inUse - faulty - maintenance, 0);
+  const workingPool = Math.max(total - faulty - maintenance, 0);
 
   return {
     station_id: row.station_id,
     station_name: row.station_name,
     quantity_total: total,
-    quantity_in_use: inUse,
-    quantity_working: working,
+    quantity_in_use: 0,
+    quantity_working: workingPool,
     quantity_faulty: faulty,
     quantity_maintenance: maintenance,
-    utilization: total > 0 ? Number(((inUse / total) * 100).toFixed(1)) : 0,
+    utilization: total > 0 ? Number(((workingPool / total) * 100).toFixed(1)) : 0,
   };
 };
 
@@ -372,6 +377,15 @@ const STATUS_BUCKETS = {
 };
 
 const getMachineryInventorySummary = async (req, res) => {
+  let snapshotDate;
+  try {
+    snapshotDate = normalizeDateParam(req.query?.date);
+  } catch (dateError) {
+    return res
+      .status(dateError.statusCode || 400)
+      .json({ success: false, message: dateError.message });
+  }
+
   try {
     const { from, to, station_id: stationIdParam } = req.query;
     const stationId = stationIdParam ? Number(stationIdParam) : null;
@@ -393,7 +407,6 @@ const getMachineryInventorySummary = async (req, res) => {
           s.id AS station_id,
           s.station_name,
           COALESCE(SUM(m.quantity_total), 0) AS quantity_total,
-          COALESCE(SUM(m.quantity_in_use), 0) AS quantity_in_use,
           COALESCE(SUM(m.quantity_faulty), 0) AS quantity_faulty,
           COALESCE(SUM(m.quantity_maintenance), 0) AS quantity_maintenance
         FROM stations s
@@ -404,98 +417,67 @@ const getMachineryInventorySummary = async (req, res) => {
         stationParams,
       );
 
+      const stationIds = rows.map((row) => row.station_id);
       const usageConditions = [];
       const usageParams = [];
+      const hasRange = Boolean(from || to);
+
+      if (hasRange) {
+        if (from) {
+          usageConditions.push('usage_date >= ?');
+          usageParams.push(from);
+        }
+        if (to) {
+          usageConditions.push('usage_date <= ?');
+          usageParams.push(to);
+        }
+      } else {
+        usageConditions.push('usage_date = ?');
+        usageParams.push(snapshotDate);
+      }
 
       if (stationId) {
         usageConditions.push('station_id = ?');
         usageParams.push(stationId);
+      } else if (stationIds.length) {
+        usageConditions.push(`station_id IN (${stationIds.map(() => '?').join(',')})`);
+        usageParams.push(...stationIds);
       }
 
-      if (from) {
-        usageConditions.push('usage_date >= ?');
-        usageParams.push(from);
-      }
-
-      if (to) {
-        usageConditions.push('usage_date <= ?');
-        usageParams.push(to);
-      }
-
-      const usageWhere = usageConditions.length ? `WHERE ${usageConditions.join(' AND ')}` : '';
-
-      const statusQuery = `
-        SELECT mu.station_id, mu.status
-        FROM machinery_usage mu
-        INNER JOIN (
-          SELECT station_id, machine_name, MAX(id) AS latest_id
+      let usageMap = new Map();
+      if (usageConditions.length) {
+        const usageQuery = `
+          SELECT station_id, COUNT(DISTINCT machine_name) AS assigned_count
           FROM machinery_usage
-          ${usageWhere}
-          GROUP BY station_id, machine_name
-        ) latest ON latest.latest_id = mu.id
-      `;
+          WHERE ${usageConditions.join(' AND ')}
+          GROUP BY station_id
+        `;
 
-      const [statusRows] = await connection.query(statusQuery, usageParams);
-
-      const statusCounts = new Map();
-      const ensureCounters = (stationIdValue) => {
-        if (!statusCounts.has(stationIdValue)) {
-          statusCounts.set(stationIdValue, {
-            in_use: 0,
-            available: 0,
-            maintenance: 0,
-            faulty: 0,
-          });
-        }
-        return statusCounts.get(stationIdValue);
-      };
-
-      statusRows.forEach((row) => {
-        const bucketKey = STATUS_BUCKETS[row.status?.toString().trim().toLowerCase()];
-        if (!bucketKey) {
-          return;
-        }
-        const counters = ensureCounters(row.station_id);
-        counters[bucketKey] += 1;
-      });
+        const [usageRows] = await connection.query(usageQuery, usageParams);
+        usageMap = new Map(
+          usageRows.map((row) => [row.station_id, Number(row.assigned_count) || 0]),
+        );
+      }
 
       const stations = rows
         .map(mapStationInventory)
         .filter((station) => station.quantity_total > 0)
         .map((station) => {
-          const counters = statusCounts.get(station.station_id) || {
-            in_use: 0,
-            available: 0,
-            maintenance: 0,
-            faulty: 0,
-          };
-
-          const clamp = (value) => Math.max(Math.min(value, station.quantity_total), 0);
-
-          const quantity_in_use = clamp(counters.in_use);
-          const quantity_faulty = clamp(counters.faulty);
-          const quantity_maintenance = clamp(counters.maintenance);
-
-          let quantity_working = clamp(counters.available);
-          let accounted = quantity_in_use + quantity_faulty + quantity_maintenance + quantity_working;
-
-          if (accounted < station.quantity_total) {
-            quantity_working += station.quantity_total - accounted;
-          } else if (accounted > station.quantity_total) {
-            const overflow = accounted - station.quantity_total;
-            quantity_working = Math.max(quantity_working - overflow, 0);
-          }
+          const workingPool = Math.max(
+            station.quantity_total - station.quantity_faulty - station.quantity_maintenance,
+            0,
+          );
+          const assignedCount = Number(usageMap.get(station.station_id) || 0);
+          const quantity_in_use = Math.min(workingPool, assignedCount);
+          const quantity_working = Math.max(workingPool - quantity_in_use, 0);
 
           return {
             ...station,
             quantity_in_use,
-            quantity_faulty,
-            quantity_maintenance,
             quantity_working,
-            utilization:
-              station.quantity_total > 0
-                ? Number(((quantity_in_use / station.quantity_total) * 100).toFixed(1))
-                : 0,
+            available_today: quantity_working,
+            used_today: quantity_in_use,
+            snapshot_date: hasRange ? null : snapshotDate,
           };
         });
 
@@ -517,13 +499,16 @@ const getMachineryInventorySummary = async (req, res) => {
         },
       );
 
+      const workingPoolTotal = totals.quantity_in_use + totals.quantity_working;
       const summary = {
         ...totals,
         utilization:
-          totals.quantity_total > 0
-            ? Number(((totals.quantity_in_use / totals.quantity_total) * 100).toFixed(1))
+          workingPoolTotal > 0
+            ? Number(((totals.quantity_in_use / workingPoolTotal) * 100).toFixed(1))
             : 0,
         stations_with_inventory: stations.length,
+        snapshot_date: hasRange ? null : snapshotDate,
+        next_reset_date: hasRange ? null : nextDateString(snapshotDate),
       };
 
       return res.status(200).json({
@@ -531,6 +516,12 @@ const getMachineryInventorySummary = async (req, res) => {
         data: {
           stations,
           summary,
+        },
+        meta: {
+          snapshot_date: hasRange ? null : snapshotDate,
+          next_reset_date: hasRange ? null : nextDateString(snapshotDate),
+          filter_mode: hasRange ? 'range' : 'single-day',
+          timezone: APP_TIMEZONE,
         },
       });
     } finally {

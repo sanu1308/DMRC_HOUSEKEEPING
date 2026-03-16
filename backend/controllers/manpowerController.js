@@ -1,5 +1,11 @@
 const pool = require('../config/db');
 const { MIN_STATION_MANPOWER } = require('../services/manpowerService');
+const {
+  APP_TIMEZONE,
+  normalizeDateParam,
+  todayString,
+  nextDateString,
+} = require('../utils/dateUtils');
 
 const parsePositiveInt = (value) => {
   if (value === undefined || value === null || value === '') {
@@ -18,6 +24,18 @@ const sanitizeBreakdown = (value) => {
 };
 
 const getStationManpower = async (req, res) => {
+  let snapshotDate;
+  try {
+    snapshotDate = normalizeDateParam(req.query?.date);
+  } catch (dateError) {
+    return res
+      .status(dateError.statusCode || 400)
+      .json({ success: false, message: dateError.message });
+  }
+
+  const todaySnapshot = todayString();
+  const nextResetDate = nextDateString(snapshotDate);
+
   try {
     const connection = await pool.getConnection();
     try {
@@ -38,7 +56,47 @@ const getStationManpower = async (req, res) => {
          INNER JOIN stations st ON st.id = sm.station_id
          ORDER BY st.station_name ASC`,
       );
-      return res.status(200).json({ success: true, data: rows });
+
+      const stationIds = rows.map((row) => row.station_id);
+      let usageMap = new Map();
+
+      if (stationIds.length) {
+        const placeholders = stationIds.map(() => '?').join(',');
+        const [usageRows] = await connection.query(
+          `SELECT station_id, COALESCE(SUM(manpower_used), 0) AS used_today
+           FROM section_manpower_usage
+           WHERE usage_date = ? AND station_id IN (${placeholders})
+           GROUP BY station_id`,
+          [snapshotDate, ...stationIds],
+        );
+
+        usageMap = new Map(
+          usageRows.map((usage) => [usage.station_id, Number(usage.used_today) || 0]),
+        );
+      }
+
+      const enriched = rows.map((row) => {
+        const usedToday = Number(usageMap.get(row.station_id) || 0);
+        const availableToday = Math.max(row.total_manpower - usedToday, 0);
+
+        return {
+          ...row,
+          snapshot_date: snapshotDate,
+          used_today: usedToday,
+          available_today: availableToday,
+          reset_state: snapshotDate === todaySnapshot ? 'scheduled' : 'historical',
+        };
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: enriched,
+        meta: {
+          snapshot_date: snapshotDate,
+          next_reset_date: nextResetDate,
+          timezone: APP_TIMEZONE,
+        },
+      });
     } finally {
       connection.release();
     }
